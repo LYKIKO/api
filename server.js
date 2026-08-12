@@ -3,65 +3,140 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const compression = require('compression'); // npm install compression
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// Middleware
+// ============ MIDDLEWARE ============
 app.use(cors());
-app.use(express.json());
+app.use(compression());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Data file path
+// ============ DATA MANAGEMENT ============
 const DATA_FILE = path.join(__dirname, 'data', 'products.json');
+let productsCache = null;
+let cacheTimestamp = null;
+const CACHE_TTL = 5000; // 5 seconds
 
-// Helper functions
-const readData = () => {
+// File watcher for external changes
+let watcherInitialized = false;
+
+function initializeFileWatcher() {
+    if (watcherInitialized) return;
+    try {
+        fs.watch(DATA_FILE, (eventType) => {
+            if (eventType === 'change') {
+                console.log('[Cache] File changed, clearing cache...');
+                productsCache = null;
+                cacheTimestamp = null;
+            }
+        });
+        watcherInitialized = true;
+        console.log('[Cache] File watcher initialized');
+    } catch (error) {
+        console.error('[Cache] Failed to initialize watcher:', error.message);
+    }
+}
+
+function readData() {
+    // Return cached data if valid
+    if (productsCache && cacheTimestamp && (Date.now() - cacheTimestamp < CACHE_TTL)) {
+        return productsCache;
+    }
+
     try {
         if (!fs.existsSync(DATA_FILE)) {
-            // Create default data if file doesn't exist
-            const defaultData = {
-                products: [],
-                lastUpdated: new Date().toISOString()
-            };
+            const defaultData = { products: [], lastUpdated: new Date().toISOString() };
             fs.writeFileSync(DATA_FILE, JSON.stringify(defaultData, null, 2));
+            productsCache = defaultData;
+            cacheTimestamp = Date.now();
+            initializeFileWatcher();
             return defaultData;
         }
+
         const data = fs.readFileSync(DATA_FILE, 'utf8');
-        return JSON.parse(data);
+        const parsed = JSON.parse(data);
+        
+        // Ensure products is always an array
+        if (!Array.isArray(parsed.products)) {
+            parsed.products = [];
+        }
+        
+        productsCache = parsed;
+        cacheTimestamp = Date.now();
+        initializeFileWatcher();
+        return parsed;
     } catch (error) {
-        console.error('Error reading data file:', error);
+        console.error('[Data] Error reading file:', error);
         return { products: [] };
     }
-};
+}
 
-const writeData = (data) => {
+// Async write with retry
+async function writeData(data) {
     try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+        // Ensure directory exists
+        const dir = path.dirname(DATA_FILE);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+
+        // Write to temp file first
+        const tempFile = DATA_FILE + '.tmp';
+        fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+        
+        // Atomic rename
+        fs.renameSync(tempFile, DATA_FILE);
+        
+        // Update cache
+        productsCache = data;
+        cacheTimestamp = Date.now();
         return true;
     } catch (error) {
-        console.error('Error writing data file:', error);
+        console.error('[Data] Error writing file:', error);
         return false;
     }
-};
+}
 
-// Generate random product ID (15 characters)
-const generateProductId = () => {
+// ============ HELPERS ============
+function generateProductId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
     for (let i = 0; i < 15; i++) {
         result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
-};
+}
 
-// Routes
+function paginateArray(array, page = 1, limit = 24) {
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const paginated = array.slice(start, end);
+    return {
+        products: paginated,
+        total: array.length,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(array.length / limit),
+        hasNextPage: end < array.length,
+        hasPrevPage: page > 1
+    };
+}
+
+// ============ ROUTES ============
 app.get('/', (req, res) => {
     res.json({
         name: 'SbayStore API',
-        version: '1.0.0',
+        version: '2.0.0',
+        features: {
+            pagination: '24 products per page',
+            caching: '5-second response cache',
+            compression: 'gzip enabled'
+        },
         endpoints: {
-            products: '/api/products',
+            products: '/api/products?page=1&limit=24',
             product: '/api/products/:id',
             create: '/api/products (POST)',
             update: '/api/products/:id (PUT)',
@@ -70,72 +145,76 @@ app.get('/', (req, res) => {
     });
 });
 
-// Get all products
+// ============ GET ALL PRODUCTS (WITH PAGINATION) ============
 app.get('/api/products', (req, res) => {
     try {
+        const startTime = Date.now();
         const data = readData();
+        
+        // Parse pagination parameters
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 24, 60); // Max 60 per page
         const { search, category, minPrice, maxPrice, sort } = req.query;
         
         let products = data.products || [];
 
-        // Search filter
+        // --- FILTERS ---
         if (search) {
             const searchLower = search.toLowerCase();
             products = products.filter(p => 
-                p.product_name.toLowerCase().includes(searchLower) ||
-                p.product_description.toLowerCase().includes(searchLower) ||
-                p.product_category.toLowerCase().includes(searchLower)
+                (p.product_name || '').toLowerCase().includes(searchLower) ||
+                (p.product_description || '').toLowerCase().includes(searchLower) ||
+                (p.product_category || '').toLowerCase().includes(searchLower)
             );
         }
 
-        // Category filter
         if (category) {
             products = products.filter(p => 
-                p.product_category.toLowerCase() === category.toLowerCase()
+                (p.product_category || '').toLowerCase() === category.toLowerCase()
             );
         }
 
-        // Price range filter
         if (minPrice) {
-            products = products.filter(p => p.product_price >= parseFloat(minPrice));
+            products = products.filter(p => (p.product_price || 0) >= parseFloat(minPrice));
         }
         if (maxPrice) {
-            products = products.filter(p => p.product_price <= parseFloat(maxPrice));
+            products = products.filter(p => (p.product_price || 0) <= parseFloat(maxPrice));
         }
 
-        // Sort
+        // --- SORT ---
         if (sort) {
             switch(sort) {
-                case 'price_asc':
-                    products.sort((a, b) => a.product_price - b.product_price);
-                    break;
-                case 'price_desc':
-                    products.sort((a, b) => b.product_price - a.product_price);
-                    break;
-                case 'name_asc':
-                    products.sort((a, b) => a.product_name.localeCompare(b.product_name));
-                    break;
-                case 'name_desc':
-                    products.sort((a, b) => b.product_name.localeCompare(a.product_name));
-                    break;
-                case 'newest':
-                    products.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                    break;
-                case 'oldest':
-                    products.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                    break;
-                default:
-                    break;
+                case 'price_asc': products.sort((a, b) => (a.product_price || 0) - (b.product_price || 0)); break;
+                case 'price_desc': products.sort((a, b) => (b.product_price || 0) - (a.product_price || 0)); break;
+                case 'name_asc': products.sort((a, b) => (a.product_name || '').localeCompare(b.product_name || '')); break;
+                case 'name_desc': products.sort((a, b) => (b.product_name || '').localeCompare(a.product_name || '')); break;
+                case 'newest': products.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)); break;
+                case 'oldest': products.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)); break;
+                default: break;
             }
         }
 
+        // --- PAGINATION ---
+        const result = paginateArray(products, page, limit);
+
+        // Add cache headers
+        res.set({
+            'Cache-Control': 'public, max-age=5',
+            'X-Response-Time': `${Date.now() - startTime}ms`,
+            'X-Total-Products': result.total,
+            'X-Total-Pages': result.totalPages,
+            'X-Current-Page': result.page
+        });
+
         res.json({
             success: true,
-            total: products.length,
-            products: products
+            ...result,
+            // Include category count for filters
+            categories: [...new Set(data.products.map(p => p.product_category).filter(Boolean))]
         });
+
     } catch (error) {
-        console.error('Error fetching products:', error);
+        console.error('[API] Error fetching products:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching products',
@@ -144,7 +223,7 @@ app.get('/api/products', (req, res) => {
     }
 });
 
-// Get single product by ID
+// ============ GET SINGLE PRODUCT ============
 app.get('/api/products/:id', (req, res) => {
     try {
         const data = readData();
@@ -162,7 +241,7 @@ app.get('/api/products/:id', (req, res) => {
             product: product
         });
     } catch (error) {
-        console.error('Error fetching product:', error);
+        console.error('[API] Error fetching product:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching product',
@@ -171,8 +250,8 @@ app.get('/api/products/:id', (req, res) => {
     }
 });
 
-// Create new product
-app.post('/api/products', (req, res) => {
+// ============ CREATE PRODUCT ============
+app.post('/api/products', async (req, res) => {
     try {
         const data = readData();
         const {
@@ -185,7 +264,7 @@ app.post('/api/products', (req, res) => {
         } = req.body;
 
         // Validation
-        if (!product_name || !product_price || !product_category) {
+        if (!product_name || product_price === undefined || !product_category) {
             return res.status(400).json({
                 success: false,
                 message: 'Missing required fields: product_name, product_price, product_category'
@@ -206,7 +285,7 @@ app.post('/api/products', (req, res) => {
         data.products.push(newProduct);
         data.lastUpdated = new Date().toISOString();
 
-        if (writeData(data)) {
+        if (await writeData(data)) {
             res.status(201).json({
                 success: true,
                 message: 'Product created successfully',
@@ -219,7 +298,7 @@ app.post('/api/products', (req, res) => {
             });
         }
     } catch (error) {
-        console.error('Error creating product:', error);
+        console.error('[API] Error creating product:', error);
         res.status(500).json({
             success: false,
             message: 'Error creating product',
@@ -228,8 +307,8 @@ app.post('/api/products', (req, res) => {
     }
 });
 
-// Update product
-app.put('/api/products/:id', (req, res) => {
+// ============ UPDATE PRODUCT ============
+app.put('/api/products/:id', async (req, res) => {
     try {
         const data = readData();
         const productIndex = data.products.findIndex(p => p.product_id === req.params.id);
@@ -244,7 +323,6 @@ app.put('/api/products/:id', (req, res) => {
         const updatedFields = req.body;
         const existingProduct = data.products[productIndex];
 
-        // Update only provided fields
         data.products[productIndex] = {
             ...existingProduct,
             product_name: updatedFields.product_name || existingProduct.product_name,
@@ -258,7 +336,7 @@ app.put('/api/products/:id', (req, res) => {
 
         data.lastUpdated = new Date().toISOString();
 
-        if (writeData(data)) {
+        if (await writeData(data)) {
             res.json({
                 success: true,
                 message: 'Product updated successfully',
@@ -271,7 +349,7 @@ app.put('/api/products/:id', (req, res) => {
             });
         }
     } catch (error) {
-        console.error('Error updating product:', error);
+        console.error('[API] Error updating product:', error);
         res.status(500).json({
             success: false,
             message: 'Error updating product',
@@ -280,8 +358,8 @@ app.put('/api/products/:id', (req, res) => {
     }
 });
 
-// Delete product
-app.delete('/api/products/:id', (req, res) => {
+// ============ DELETE PRODUCT ============
+app.delete('/api/products/:id', async (req, res) => {
     try {
         const data = readData();
         const productIndex = data.products.findIndex(p => p.product_id === req.params.id);
@@ -297,7 +375,7 @@ app.delete('/api/products/:id', (req, res) => {
         data.products.splice(productIndex, 1);
         data.lastUpdated = new Date().toISOString();
 
-        if (writeData(data)) {
+        if (await writeData(data)) {
             res.json({
                 success: true,
                 message: 'Product deleted successfully',
@@ -310,7 +388,7 @@ app.delete('/api/products/:id', (req, res) => {
             });
         }
     } catch (error) {
-        console.error('Error deleting product:', error);
+        console.error('[API] Error deleting product:', error);
         res.status(500).json({
             success: false,
             message: 'Error deleting product',
@@ -319,8 +397,8 @@ app.delete('/api/products/:id', (req, res) => {
     }
 });
 
-// Bulk create products (for seeding)
-app.post('/api/products/bulk', (req, res) => {
+// ============ BULK CREATE ============
+app.post('/api/products/bulk', async (req, res) => {
     try {
         const data = readData();
         const products = req.body.products || [];
@@ -334,7 +412,7 @@ app.post('/api/products/bulk', (req, res) => {
 
         const newProducts = products.map(p => ({
             product_id: generateProductId(),
-            product_name: p.product_name,
+            product_name: p.product_name || 'Unnamed Product',
             product_price: parseFloat(p.product_price) || 0,
             product_image_url: p.product_image_url || 'https://via.placeholder.com/300x200/111827/2563EB?text=No+Image',
             product_category: p.product_category || 'Uncategorized',
@@ -346,7 +424,7 @@ app.post('/api/products/bulk', (req, res) => {
         data.products.push(...newProducts);
         data.lastUpdated = new Date().toISOString();
 
-        if (writeData(data)) {
+        if (await writeData(data)) {
             res.status(201).json({
                 success: true,
                 message: `${newProducts.length} products created successfully`,
@@ -359,7 +437,7 @@ app.post('/api/products/bulk', (req, res) => {
             });
         }
     } catch (error) {
-        console.error('Error bulk creating products:', error);
+        console.error('[API] Error bulk creating products:', error);
         res.status(500).json({
             success: false,
             message: 'Error bulk creating products',
@@ -368,9 +446,22 @@ app.post('/api/products/bulk', (req, res) => {
     }
 });
 
-// Start server
+// ============ HEALTH CHECK ============
+app.get('/api/health', (req, res) => {
+    const data = readData();
+    res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        productCount: data.products.length,
+        cacheAge: cacheTimestamp ? `${Date.now() - cacheTimestamp}ms` : 'none'
+    });
+});
+
+// ============ START SERVER ============
 app.listen(PORT, () => {
-    console.log(`🚀 SbayStore API running on http://localhost:${PORT}`);
+    console.log(`🚀 SbayStore API v2.0 running on http://localhost:${PORT}`);
     console.log(`📊 Data file: ${DATA_FILE}`);
-    console.log(`📦 Products endpoint: http://localhost:${PORT}/api/products`);
+    console.log(`📦 Products endpoint: http://localhost:${PORT}/api/products?page=1&limit=24`);
+    console.log(`💾 Cache TTL: ${CACHE_TTL}ms`);
+    console.log(`🔄 File watcher: ${watcherInitialized ? 'active' : 'initializing...'}`);
 });
