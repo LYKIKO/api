@@ -3,7 +3,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const compression = require('compression'); // npm install compression
+const compression = require('compression');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -13,6 +13,9 @@ app.use(cors());
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ============ DATA MANAGEMENT ============
 const DATA_FILE = path.join(__dirname, 'data', 'products.json');
@@ -127,20 +130,27 @@ function paginateArray(array, page = 1, limit = 24) {
 
 // ============ ROUTES ============
 app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/api', (req, res) => {
     res.json({
         name: 'SbayStore API',
         version: '2.0.0',
         features: {
             pagination: '24 products per page',
             caching: '5-second response cache',
-            compression: 'gzip enabled'
+            compression: 'gzip enabled',
+            stockManagement: 'Add and update stock'
         },
         endpoints: {
             products: '/api/products?page=1&limit=24',
             product: '/api/products/:id',
             create: '/api/products (POST)',
             update: '/api/products/:id (PUT)',
-            delete: '/api/products/:id (DELETE)'
+            delete: '/api/products/:id (DELETE)',
+            addStock: '/api/products/:id/add-stock (POST)',
+            bulkAdd: '/api/products/bulk (POST)'
         }
     });
 });
@@ -150,11 +160,10 @@ app.get('/api/products', (req, res) => {
     try {
         const startTime = Date.now();
         const data = readData();
-        
-        // Parse pagination parameters
+
         const page = parseInt(req.query.page) || 1;
-        const limit = Math.min(parseInt(req.query.limit) || 24, 60); // Max 60 per page
-        const { search, category, minPrice, maxPrice, sort } = req.query;
+        const limit = Math.min(parseInt(req.query.limit) || 24, 60);
+        const { search, category, minPrice, maxPrice, sort, minStock, maxStock } = req.query;
         
         let products = data.products || [];
 
@@ -181,6 +190,13 @@ app.get('/api/products', (req, res) => {
             products = products.filter(p => (p.product_price || 0) <= parseFloat(maxPrice));
         }
 
+        if (minStock) {
+            products = products.filter(p => (p.product_stock || 0) >= parseInt(minStock));
+        }
+        if (maxStock) {
+            products = products.filter(p => (p.product_stock || 0) <= parseInt(maxStock));
+        }
+
         // --- SORT ---
         if (sort) {
             switch(sort) {
@@ -188,6 +204,8 @@ app.get('/api/products', (req, res) => {
                 case 'price_desc': products.sort((a, b) => (b.product_price || 0) - (a.product_price || 0)); break;
                 case 'name_asc': products.sort((a, b) => (a.product_name || '').localeCompare(b.product_name || '')); break;
                 case 'name_desc': products.sort((a, b) => (b.product_name || '').localeCompare(a.product_name || '')); break;
+                case 'stock_asc': products.sort((a, b) => (a.product_stock || 0) - (b.product_stock || 0)); break;
+                case 'stock_desc': products.sort((a, b) => (b.product_stock || 0) - (a.product_stock || 0)); break;
                 case 'newest': products.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)); break;
                 case 'oldest': products.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)); break;
                 default: break;
@@ -197,7 +215,6 @@ app.get('/api/products', (req, res) => {
         // --- PAGINATION ---
         const result = paginateArray(products, page, limit);
 
-        // Add cache headers
         res.set({
             'Cache-Control': 'public, max-age=5',
             'X-Response-Time': `${Date.now() - startTime}ms`,
@@ -209,7 +226,6 @@ app.get('/api/products', (req, res) => {
         res.json({
             success: true,
             ...result,
-            // Include category count for filters
             categories: [...new Set(data.products.map(p => p.product_category).filter(Boolean))]
         });
 
@@ -228,7 +244,7 @@ app.get('/api/products/:id', (req, res) => {
     try {
         const data = readData();
         const product = data.products.find(p => p.product_id === req.params.id);
-        
+
         if (!product) {
             return res.status(404).json({
                 success: false,
@@ -307,12 +323,85 @@ app.post('/api/products', async (req, res) => {
     }
 });
 
+// ============ ADD STOCK TO PRODUCT ============
+app.post('/api/products/:id/add-stock', async (req, res) => {
+    try {
+        const data = readData();
+        const productIndex = data.products.findIndex(p => p.product_id === req.params.id);
+
+        if (productIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found'
+            });
+        }
+
+        const { quantity, note } = req.body;
+        const addQuantity = parseInt(quantity);
+
+        if (!addQuantity || addQuantity <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide a valid quantity to add (positive number)'
+            });
+        }
+
+        const existingProduct = data.products[productIndex];
+        const oldStock = existingProduct.product_stock || 0;
+        const newStock = oldStock + addQuantity;
+
+        // Update product stock
+        data.products[productIndex] = {
+            ...existingProduct,
+            product_stock: newStock,
+            updated_at: new Date().toISOString().replace('T', ' ').slice(0, 19),
+            stock_history: [
+                ...(existingProduct.stock_history || []),
+                {
+                    date: new Date().toISOString().replace('T', ' ').slice(0, 19),
+                    quantity_added: addQuantity,
+                    previous_stock: oldStock,
+                    new_stock: newStock,
+                    note: note || 'Stock addition'
+                }
+            ]
+        };
+
+        data.lastUpdated = new Date().toISOString();
+
+        if (await writeData(data)) {
+            res.json({
+                success: true,
+                message: `Added ${addQuantity} units to stock`,
+                product: data.products[productIndex],
+                stock_update: {
+                    previous_stock: oldStock,
+                    new_stock: newStock,
+                    quantity_added: addQuantity
+                }
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Failed to update stock'
+            });
+        }
+    } catch (error) {
+        console.error('[API] Error adding stock:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error adding stock',
+            error: error.message
+        });
+    }
+});
+
 // ============ UPDATE PRODUCT ============
 app.put('/api/products/:id', async (req, res) => {
     try {
         const data = readData();
         const productIndex = data.products.findIndex(p => p.product_id === req.params.id);
-        
+
         if (productIndex === -1) {
             return res.status(404).json({
                 success: false,
@@ -363,7 +452,7 @@ app.delete('/api/products/:id', async (req, res) => {
     try {
         const data = readData();
         const productIndex = data.products.findIndex(p => p.product_id === req.params.id);
-        
+
         if (productIndex === -1) {
             return res.status(404).json({
                 success: false,
@@ -464,4 +553,5 @@ app.listen(PORT, () => {
     console.log(`📦 Products endpoint: http://localhost:${PORT}/api/products?page=1&limit=24`);
     console.log(`💾 Cache TTL: ${CACHE_TTL}ms`);
     console.log(`🔄 File watcher: ${watcherInitialized ? 'active' : 'initializing...'}`);
+    console.log(`🌐 UI available at: http://localhost:${PORT}`);
 });
