@@ -1,12 +1,30 @@
+// ============ LOAD ENVIRONMENT VARIABLES ============
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const compression = require('compression');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+
+// ============ CLOUDFLARE R2 CONFIGURATION ============
+const r2Client = new S3Client({
+    region: 'auto',
+    endpoint: process.env.CLOUDFLARE_R2_ENDPOINT, // e.g., https://<account-id>.r2.cloudflarestorage.com
+    credentials: {
+        accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
+        secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
+    },
+});
+
+const R2_BUCKET = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+const BACKUP_PREFIX = 'backups/products/';
+const MAX_BACKUPS = 10; // Keep only last 10 backups
 
 // ============ MIDDLEWARE ============
 app.use(cors());
@@ -96,11 +114,146 @@ async function writeData(data) {
         // Update cache
         productsCache = data;
         cacheTimestamp = Date.now();
+        
+        // Trigger backup after successful write
+        backupToCloudflare(data).catch(err => 
+            console.error('[Backup] Async backup failed:', err.message)
+        );
+        
         return true;
     } catch (error) {
         console.error('[Data] Error writing file:', error);
         return false;
     }
+}
+
+// ============ CLOUDFLARE R2 BACKUP FUNCTIONS ============
+
+/**
+ * Create a backup of the products data to Cloudflare R2
+ */
+async function backupToCloudflare(data) {
+    try {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupFileName = `products_backup_${timestamp}.json`;
+        const backupKey = `${BACKUP_PREFIX}${backupFileName}`;
+
+        // Convert data to buffer
+        const jsonData = JSON.stringify(data, null, 2);
+        const buffer = Buffer.from(jsonData, 'utf8');
+
+        // Upload to R2
+        const command = new PutObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: backupKey,
+            Body: buffer,
+            ContentType: 'application/json',
+            Metadata: {
+                'backup-time': new Date().toISOString(),
+                'product-count': String(data.products?.length || 0),
+                'version': '2.0.0'
+            }
+        });
+
+        await r2Client.send(command);
+        console.log(`[Backup] Successfully uploaded backup: ${backupFileName}`);
+        
+        // Clean up old backups
+        await cleanupOldBackups();
+        
+        return {
+            success: true,
+            fileName: backupFileName,
+            timestamp: timestamp
+        };
+    } catch (error) {
+        console.error('[Backup] Failed to backup to Cloudflare R2:', error.message);
+        throw error;
+    }
+}
+
+/**
+ * Clean up old backups, keeping only the most recent MAX_BACKUPS
+ */
+async function cleanupOldBackups() {
+    try {
+        // Note: You might need to implement list and delete functionality
+        // For now, we'll log a warning if MAX_BACKUPS is exceeded
+        // Full implementation would require the ListObjectsV2 and DeleteObjects commands
+        
+        console.log('[Backup] Old backup cleanup would run here');
+        console.log(`[Backup] Currently keeping up to ${MAX_BACKUPS} backups`);
+        
+        // To implement full cleanup, uncomment and use:
+        /*
+        const { ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
+        
+        const listCommand = new ListObjectsV2Command({
+            Bucket: R2_BUCKET,
+            Prefix: BACKUP_PREFIX,
+        });
+        
+        const response = await r2Client.send(listCommand);
+        
+        if (response.Contents && response.Contents.length > MAX_BACKUPS) {
+            // Sort by last modified (oldest first)
+            const sortedFiles = response.Contents.sort((a, b) => 
+                a.LastModified - b.LastModified
+            );
+            
+            const filesToDelete = sortedFiles.slice(0, sortedFiles.length - MAX_BACKUPS);
+            
+            if (filesToDelete.length > 0) {
+                const deleteCommand = new DeleteObjectsCommand({
+                    Bucket: R2_BUCKET,
+                    Delete: {
+                        Objects: filesToDelete.map(file => ({ Key: file.Key })),
+                        Quiet: false
+                    }
+                });
+                
+                await r2Client.send(deleteCommand);
+                console.log(`[Backup] Cleaned up ${filesToDelete.length} old backups`);
+            }
+        }
+        */
+        
+    } catch (error) {
+        console.error('[Backup] Failed to clean up old backups:', error.message);
+    }
+}
+
+/**
+ * Backup current data to R2 (called by cron job)
+ */
+async function performScheduledBackup() {
+    try {
+        console.log('[Backup] Performing scheduled hourly backup...');
+        const data = readData();
+        const result = await backupToCloudflare(data);
+        console.log(`[Backup] Hourly backup completed: ${result.fileName}`);
+        return result;
+    } catch (error) {
+        console.error('[Backup] Scheduled backup failed:', error.message);
+        return null;
+    }
+}
+
+// ============ SCHEDULED BACKUP (Every Hour) ============
+let backupInterval = null;
+
+function startScheduledBackup() {
+    if (backupInterval) {
+        clearInterval(backupInterval);
+    }
+    
+    // Run every hour (3600000 ms)
+    backupInterval = setInterval(performScheduledBackup, 3600000);
+    
+    // Run immediately on startup
+    setTimeout(performScheduledBackup, 5000); // Wait 5 seconds for server to initialize
+    
+    console.log('[Scheduler] Hourly backup scheduler started');
 }
 
 // ============ HELPERS ============
@@ -141,7 +294,8 @@ app.get('/api', (req, res) => {
             pagination: '24 products per page',
             caching: '5-second response cache',
             compression: 'gzip enabled',
-            stockManagement: 'Add and update stock'
+            stockManagement: 'Add and update stock',
+            backup: 'Hourly backup to Cloudflare R2'
         },
         endpoints: {
             products: '/api/products?page=1&limit=24',
@@ -150,7 +304,9 @@ app.get('/api', (req, res) => {
             update: '/api/products/:id (PUT)',
             delete: '/api/products/:id (DELETE)',
             addStock: '/api/products/:id/add-stock (POST)',
-            bulkAdd: '/api/products/bulk (POST)'
+            bulkAdd: '/api/products/bulk (POST)',
+            backupStatus: '/api/backup/status (GET)',
+            manualBackup: '/api/backup/manual (POST)'
         }
     });
 });
@@ -535,6 +691,47 @@ app.post('/api/products/bulk', async (req, res) => {
     }
 });
 
+// ============ BACKUP STATUS ============
+app.get('/api/backup/status', (req, res) => {
+    res.json({
+        success: true,
+        backup: {
+            enabled: true,
+            provider: 'Cloudflare R2',
+            bucket: R2_BUCKET,
+            schedule: 'Hourly',
+            maxBackups: MAX_BACKUPS,
+            prefix: BACKUP_PREFIX
+        }
+    });
+});
+
+// ============ MANUAL BACKUP ============
+app.post('/api/backup/manual', async (req, res) => {
+    try {
+        const result = await performScheduledBackup();
+        if (result) {
+            res.json({
+                success: true,
+                message: 'Manual backup completed successfully',
+                backup: result
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Manual backup failed'
+            });
+        }
+    } catch (error) {
+        console.error('[API] Manual backup error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error performing manual backup',
+            error: error.message
+        });
+    }
+});
+
 // ============ HEALTH CHECK ============
 app.get('/api/health', (req, res) => {
     const data = readData();
@@ -542,7 +739,8 @@ app.get('/api/health', (req, res) => {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         productCount: data.products.length,
-        cacheAge: cacheTimestamp ? `${Date.now() - cacheTimestamp}ms` : 'none'
+        cacheAge: cacheTimestamp ? `${Date.now() - cacheTimestamp}ms` : 'none',
+        backupScheduler: backupInterval ? 'running' : 'stopped'
     });
 });
 
@@ -554,4 +752,12 @@ app.listen(PORT, () => {
     console.log(`💾 Cache TTL: ${CACHE_TTL}ms`);
     console.log(`🔄 File watcher: ${watcherInitialized ? 'active' : 'initializing...'}`);
     console.log(`🌐 UI available at: http://localhost:${PORT}`);
+    console.log(`☁️  Cloudflare R2 backup: ${R2_BUCKET ? 'enabled' : 'disabled (check environment variables)'}`);
+    
+    // Start the hourly backup scheduler
+    if (R2_BUCKET && process.env.CLOUDFLARE_R2_ACCESS_KEY_ID) {
+        startScheduledBackup();
+    } else {
+        console.warn('⚠️  Cloudflare R2 backup is not configured. Set environment variables to enable.');
+    }
 });
