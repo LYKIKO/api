@@ -3,312 +3,1542 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SbayStore - Product Management</title>
+    <meta name="theme-color" content="#0a0d12">
+
+    <title>SbayStore — Admin Dashboard</title>
+
     <style>
+        /* =========================================================
+           RESET
+        ========================================================= */
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        :root {
+            --bg: #07090d;
+            --bg-soft: #0b0f15;
+            --panel: rgba(15, 20, 28, 0.72);
+            --panel-solid: #0f141c;
+            --panel-light: rgba(255, 255, 255, 0.035);
+
+            --border: rgba(255, 255, 255, 0.08);
+            --border-light: rgba(255, 255, 255, 0.12);
+
+            --text: #f5f7fa;
+            --text-soft: #b8c0cc;
+            --muted: #737d8c;
+
+            --blue: #3b82f6;
+            --blue-light: #60a5fa;
+            --blue-dark: #2563eb;
+
+            --green: #22c55e;
+            --yellow: #f59e0b;
+            --red: #ef4444;
+
+            --sidebar-width: 250px;
+
+            --radius: 5px;
+            --radius-lg: 8px;
+
+            --shadow: 0 15px 50px rgba(0, 0, 0, .25);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0e1a;
-            color: #e2e8f0;
+            font-family:
+                Inter,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                Roboto,
+                Arial,
+                sans-serif;
+
+            background:
+                radial-gradient(
+                    circle at 15% 10%,
+                    rgba(59, 130, 246, .08),
+                    transparent 28%
+                ),
+                radial-gradient(
+                    circle at 90% 80%,
+                    rgba(37, 99, 235, .05),
+                    transparent 30%
+                ),
+                var(--bg);
+
+            color: var(--text);
             min-height: 100vh;
-            padding: 20px;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
         }
 
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #60a5fa, #a78bfa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        button {
+            border: 0;
         }
 
-        .subtitle {
-            color: #94a3b8;
-            margin-bottom: 30px;
+        img {
+            max-width: 100%;
+            display: block;
         }
 
-        .stats {
+        ::selection {
+            background: rgba(59, 130, 246, .35);
+            color: white;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #28303c;
+            border-radius: 20px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3b4656;
+        }
+
+        /* =========================================================
+           APP
+        ========================================================= */
+
+        .app {
+            min-height: 100vh;
+        }
+
+        /* =========================================================
+           SIDEBAR
+        ========================================================= */
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+
+            width: var(--sidebar-width);
+
+            padding: 20px 14px;
+
+            background: rgba(9, 12, 17, .82);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+
+            border-right: 1px solid var(--border);
+
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+
+            padding: 4px 10px 24px;
+        }
+
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            place-items: center;
+
+            border-radius: 7px;
+
+            background: #fff;
+            color: #000;
+
+            font-size: 17px;
+            font-weight: 900;
+            letter-spacing: -1px;
         }
 
-        .stat-card {
-            background: #1e293b;
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid #334155;
+        .brand-info {
+            min-width: 0;
         }
 
-        .stat-card .label {
-            color: #94a3b8;
-            font-size: 0.9rem;
+        .brand-name {
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: -.3px;
+        }
+
+        .brand-subtitle {
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .nav-title {
+            padding: 0 10px;
+            margin: 12px 0 8px;
+
+            color: #555f6d;
+
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
             text-transform: uppercase;
         }
 
-        .stat-card .value {
-            font-size: 2rem;
-            font-weight: bold;
-            margin-top: 5px;
-            color: #60a5fa;
-        }
-
-        .tabs {
+        .nav {
             display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 3px;
         }
 
-        .tab-btn {
-            padding: 12px 24px;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            background: #1e293b;
-            color: #94a3b8;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 1rem;
-        }
-
-        .tab-btn:hover {
-            background: #2d3748;
-            color: #e2e8f0;
-        }
-
-        .tab-btn.active {
-            background: #3b82f6;
-            color: white;
-            border-color: #3b82f6;
-        }
-
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.3s;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: #cbd5e1;
-            font-weight: 500;
-        }
-
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
+        .nav-btn {
             width: 100%;
-            padding: 10px 15px;
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            color: #e2e8f0;
-            font-size: 1rem;
-            transition: all 0.3s;
+
+            display: flex;
+            align-items: center;
+            gap: 11px;
+
+            padding: 11px 10px;
+
+            color: var(--text-soft);
+            background: transparent;
+
+            border-radius: var(--radius);
+
+            cursor: pointer;
+
+            text-align: left;
+
+            transition:
+                background .18s ease,
+                color .18s ease,
+                transform .18s ease;
         }
 
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, .045);
+            color: white;
         }
 
-        .form-group textarea {
-            resize: vertical;
-            min-height: 80px;
+        .nav-btn.active {
+            color: white;
+            background: rgba(59, 130, 246, .13);
         }
 
-        .form-row {
+        .nav-icon {
+            width: 18px;
+            height: 18px;
+
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            place-items: center;
+
+            color: currentColor;
+            opacity: .9;
         }
+
+        .nav-icon svg {
+            width: 17px;
+            height: 17px;
+            stroke: currentColor;
+        }
+
+        .nav-label {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .nav-badge {
+            padding: 2px 6px;
+
+            background: rgba(59, 130, 246, .15);
+            color: var(--blue-light);
+
+            border-radius: 4px;
+
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .sidebar-bottom {
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            bottom: 16px;
+        }
+
+        .server-status {
+            padding: 12px;
+
+            background: rgba(255, 255, 255, .025);
+            border: 1px solid var(--border);
+
+            border-radius: var(--radius);
+        }
+
+        .server-status-top {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+
+            border-radius: 50%;
+            background: var(--green);
+
+            box-shadow: 0 0 10px rgba(34, 197, 94, .5);
+        }
+
+        .server-status-text {
+            color: var(--muted);
+            font-size: 10px;
+            margin-top: 6px;
+        }
+
+        /* =========================================================
+           MAIN
+        ========================================================= */
+
+        .main {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+
+            height: 68px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 0 30px;
+
+            background: rgba(7, 9, 13, .76);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+
+            border-bottom: 1px solid var(--border);
+        }
+
+        .mobile-menu {
+            display: none;
+
+            width: 36px;
+            height: 36px;
+
+            background: transparent;
+            color: white;
+
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+
+            cursor: pointer;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-title {
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: -.3px;
+        }
+
+        .breadcrumb {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .topbar-btn {
+            width: 36px;
+            height: 36px;
+
+            display: grid;
+            place-items: center;
+
+            background: rgba(255, 255, 255, .035);
+            border: 1px solid var(--border);
+
+            color: var(--text-soft);
+
+            border-radius: var(--radius);
+
+            cursor: pointer;
+
+            transition: .18s;
+        }
+
+        .topbar-btn:hover {
+            color: white;
+            border-color: var(--border-light);
+            background: rgba(255, 255, 255, .07);
+        }
+
+        .topbar-btn svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+        }
+
+        .admin-profile {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+
+            margin-left: 4px;
+            padding-left: 12px;
+
+            border-left: 1px solid var(--border);
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+
+            display: grid;
+            place-items: center;
+
+            border-radius: 50%;
+
+            background: #fff;
+            color: #000;
+
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .admin-name {
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .admin-role {
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 9px;
+        }
+
+        /* =========================================================
+           CONTENT
+        ========================================================= */
+
+        .content {
+            padding: 30px;
+            max-width: 1700px;
+        }
+
+        .view {
+            display: none;
+            animation: viewIn .25s ease;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        @keyframes viewIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .view-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+
+            gap: 20px;
+
+            margin-bottom: 24px;
+        }
+
+        .view-heading h1 {
+            font-size: 25px;
+            letter-spacing: -.8px;
+            font-weight: 800;
+        }
+
+        .view-heading p {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        /* =========================================================
+           BUTTONS
+        ========================================================= */
 
         .btn {
-            padding: 10px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+
+            min-height: 36px;
+
+            padding: 0 13px;
+
+            border-radius: var(--radius);
+
+            font-size: 11px;
+            font-weight: 700;
+
             cursor: pointer;
-            transition: all 0.3s;
+
+            transition:
+                background .18s,
+                border-color .18s,
+                transform .18s,
+                opacity .18s;
+        }
+
+        .btn:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        .btn svg {
+            width: 14px;
+            height: 14px;
+            stroke: currentColor;
         }
 
         .btn-primary {
-            background: #3b82f6;
+            background: var(--blue);
             color: white;
         }
 
         .btn-primary:hover {
-            background: #2563eb;
-            transform: translateY(-2px);
-        }
-
-        .btn-success {
-            background: #10b981;
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #059669;
-            transform: translateY(-2px);
-        }
-
-        .btn-danger {
-            background: #ef4444;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #dc2626;
-            transform: translateY(-2px);
-        }
-
-        .btn-warning {
-            background: #f59e0b;
-            color: #0a0e1a;
-        }
-
-        .btn-warning:hover {
-            background: #d97706;
-            transform: translateY(-2px);
+            background: var(--blue-dark);
         }
 
         .btn-secondary {
-            background: #4b5563;
-            color: white;
+            background: rgba(255, 255, 255, .045);
+            border: 1px solid var(--border);
+            color: var(--text-soft);
         }
 
         .btn-secondary:hover {
-            background: #374151;
-            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .08);
+            color: white;
         }
 
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-
-        .product-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .product-card {
-            background: #1e293b;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid #334155;
-            transition: all 0.3s;
-        }
-
-        .product-card:hover {
-            transform: translateY(-4px);
-            border-color: #3b82f6;
-        }
-
-        .product-card img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-        }
-
-        .product-card .info {
-            padding: 15px;
-        }
-
-        .product-card .name {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .product-card .category {
-            color: #94a3b8;
-            font-size: 0.9rem;
-        }
-
-        .product-card .price {
-            color: #60a5fa;
-            font-size: 1.3rem;
-            font-weight: bold;
-            margin: 10px 0;
-        }
-
-        .product-card .stock {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-
-        .stock-in {
-            background: #064e3b;
-            color: #34d399;
-        }
-
-        .stock-low {
-            background: #78350f;
-            color: #fbbf24;
-        }
-
-        .stock-out {
-            background: #7f1d1d;
+        .btn-danger {
+            background: rgba(239, 68, 68, .09);
+            border: 1px solid rgba(239, 68, 68, .18);
             color: #f87171;
         }
 
-        .product-card .actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, .16);
         }
 
-        .product-card .actions .btn {
-            flex: 1;
-            padding: 8px;
-            font-size: 0.85rem;
+        .btn-success {
+            background: rgba(34, 197, 94, .1);
+            border: 1px solid rgba(34, 197, 94, .18);
+            color: #4ade80;
         }
+
+        .btn-success:hover {
+            background: rgba(34, 197, 94, .16);
+        }
+
+        /* =========================================================
+           STAT CARDS
+        ========================================================= */
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            position: relative;
+            overflow: hidden;
+
+            min-height: 130px;
+
+            padding: 18px;
+
+            background: var(--panel);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+
+            box-shadow: var(--shadow);
+        }
+
+        .stat-card::after {
+            content: "";
+
+            position: absolute;
+
+            width: 80px;
+            height: 80px;
+
+            right: -30px;
+            bottom: -30px;
+
+            background: rgba(59, 130, 246, .08);
+
+            border-radius: 50%;
+        }
+
+        .stat-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            margin-bottom: 15px;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+        }
+
+        .stat-icon {
+            width: 29px;
+            height: 29px;
+
+            display: grid;
+            place-items: center;
+
+            background: rgba(59, 130, 246, .1);
+            color: var(--blue-light);
+
+            border-radius: var(--radius);
+        }
+
+        .stat-icon svg {
+            width: 14px;
+            height: 14px;
+            stroke: currentColor;
+        }
+
+        .stat-value {
+            font-size: 27px;
+            line-height: 1;
+
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .stat-description {
+            margin-top: 9px;
+
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        /* =========================================================
+           DASHBOARD GRID
+        ========================================================= */
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1.7fr 1fr;
+            gap: 12px;
+        }
+
+        .panel {
+            background: var(--panel);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+
+            box-shadow: var(--shadow);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 16px 18px;
+
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .panel-subtitle {
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .panel-body {
+            padding: 18px;
+        }
+
+        /* =========================================================
+           QUICK ACTIONS
+        ========================================================= */
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .quick-action {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            padding: 13px;
+
+            color: var(--text-soft);
+
+            background: rgba(255, 255, 255, .025);
+            border: 1px solid var(--border);
+
+            border-radius: var(--radius);
+
+            cursor: pointer;
+            text-align: left;
+
+            transition: .18s;
+        }
+
+        .quick-action:hover {
+            background: rgba(59, 130, 246, .07);
+            border-color: rgba(59, 130, 246, .2);
+            color: white;
+        }
+
+        .quick-icon {
+            width: 30px;
+            height: 30px;
+
+            display: grid;
+            place-items: center;
+
+            background: rgba(59, 130, 246, .1);
+            color: var(--blue-light);
+
+            border-radius: var(--radius);
+        }
+
+        .quick-icon svg {
+            width: 14px;
+            height: 14px;
+            stroke: currentColor;
+        }
+
+        .quick-text strong {
+            display: block;
+            font-size: 10px;
+        }
+
+        .quick-text span {
+            display: block;
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 9px;
+        }
+
+        /* =========================================================
+           ACTIVITY
+        ========================================================= */
+
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            padding: 11px 0;
+
+            border-bottom: 1px solid rgba(255, 255, 255, .045);
+        }
+
+        .activity-item:last-child {
+            border-bottom: 0;
+        }
+
+        .activity-icon {
+            width: 27px;
+            height: 27px;
+
+            display: grid;
+            place-items: center;
+
+            border-radius: 50%;
+
+            background: rgba(59, 130, 246, .09);
+            color: var(--blue-light);
+        }
+
+        .activity-icon svg {
+            width: 12px;
+            height: 12px;
+            stroke: currentColor;
+        }
+
+        .activity-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .activity-title {
+            color: var(--text-soft);
+            font-size: 10px;
+            font-weight: 600;
+
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .activity-time {
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 9px;
+        }
+
+        /* =========================================================
+           PRODUCT TOOLBAR
+        ========================================================= */
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            margin-bottom: 14px;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+        }
+
+        .search-box svg {
+            position: absolute;
+            left: 11px;
+            top: 50%;
+
+            width: 14px;
+            height: 14px;
+
+            transform: translateY(-50%);
+
+            color: var(--muted);
+            stroke: currentColor;
+        }
+
+        .search-box input {
+            width: 100%;
+            height: 38px;
+
+            padding: 0 12px 0 34px;
+
+            background: rgba(255, 255, 255, .025);
+            border: 1px solid var(--border);
+
+            color: white;
+
+            border-radius: var(--radius);
+
+            outline: none;
+
+            font-size: 11px;
+        }
+
+        .search-box input:focus {
+            border-color: rgba(59, 130, 246, .55);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, .08);
+        }
+
+        .filter-select {
+            height: 38px;
+
+            padding: 0 30px 0 10px;
+
+            background: #10151d;
+            border: 1px solid var(--border);
+
+            color: var(--text-soft);
+
+            border-radius: var(--radius);
+
+            outline: none;
+
+            font-size: 11px;
+        }
+
+        .filter-select:focus {
+            border-color: rgba(59, 130, 246, .55);
+        }
+
+        /* =========================================================
+           PRODUCTS TABLE
+        ========================================================= */
+
+        .table-panel {
+            overflow: hidden;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .products-table {
+            width: 100%;
+            border-collapse: collapse;
+
+            min-width: 850px;
+        }
+
+        .products-table th {
+            padding: 11px 14px;
+
+            color: #697383;
+
+            background: rgba(255, 255, 255, .018);
+
+            border-bottom: 1px solid var(--border);
+
+            text-align: left;
+
+            font-size: 9px;
+            font-weight: 800;
+
+            text-transform: uppercase;
+            letter-spacing: .7px;
+        }
+
+        .products-table td {
+            padding: 11px 14px;
+
+            border-bottom: 1px solid rgba(255, 255, 255, .045);
+
+            color: var(--text-soft);
+
+            font-size: 11px;
+        }
+
+        .products-table tbody tr {
+            transition: background .15s;
+        }
+
+        .products-table tbody tr:hover {
+            background: rgba(255, 255, 255, .025);
+        }
+
+        .product-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            min-width: 220px;
+        }
+
+        .product-thumb {
+            width: 38px;
+            height: 38px;
+
+            flex: 0 0 38px;
+
+            object-fit: cover;
+
+            background: #0b0f15;
+
+            border: 1px solid var(--border);
+
+            border-radius: var(--radius);
+        }
+
+        .product-name {
+            max-width: 250px;
+
+            color: white;
+
+            font-size: 11px;
+            font-weight: 700;
+
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .product-id {
+            margin-top: 3px;
+
+            color: #596270;
+
+            font-family: monospace;
+            font-size: 8px;
+        }
+
+        .category-tag {
+            display: inline-flex;
+
+            padding: 4px 7px;
+
+            background: rgba(255, 255, 255, .04);
+
+            border: 1px solid var(--border);
+
+            color: var(--text-soft);
+
+            border-radius: 4px;
+
+            font-size: 9px;
+        }
+
+        .price {
+            color: white;
+            font-weight: 800;
+        }
+
+        .stock-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+
+            padding: 4px 7px;
+
+            border-radius: 4px;
+
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .stock-badge::before {
+            content: "";
+
+            width: 5px;
+            height: 5px;
+
+            border-radius: 50%;
+        }
+
+        .stock-good {
+            background: rgba(34, 197, 94, .08);
+            color: #4ade80;
+        }
+
+        .stock-good::before {
+            background: #22c55e;
+        }
+
+        .stock-low {
+            background: rgba(245, 158, 11, .08);
+            color: #fbbf24;
+        }
+
+        .stock-low::before {
+            background: #f59e0b;
+        }
+
+        .stock-out {
+            background: rgba(239, 68, 68, .08);
+            color: #f87171;
+        }
+
+        .stock-out::before {
+            background: #ef4444;
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .icon-btn {
+            width: 29px;
+            height: 29px;
+
+            display: grid;
+            place-items: center;
+
+            background: rgba(255, 255, 255, .03);
+            border: 1px solid var(--border);
+
+            color: var(--text-soft);
+
+            border-radius: var(--radius);
+
+            cursor: pointer;
+
+            transition: .18s;
+        }
+
+        .icon-btn:hover {
+            color: white;
+            background: rgba(255, 255, 255, .08);
+        }
+
+        .icon-btn.blue:hover {
+            color: var(--blue-light);
+            border-color: rgba(59, 130, 246, .3);
+            background: rgba(59, 130, 246, .08);
+        }
+
+        .icon-btn.red:hover {
+            color: #f87171;
+            border-color: rgba(239, 68, 68, .3);
+            background: rgba(239, 68, 68, .08);
+        }
+
+        .icon-btn svg {
+            width: 13px;
+            height: 13px;
+            stroke: currentColor;
+        }
+
+        /* =========================================================
+           PAGINATION
+        ========================================================= */
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 13px 15px;
+
+            border-top: 1px solid var(--border);
+        }
+
+        .pagination-info {
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .page-btn {
+            min-width: 29px;
+            height: 29px;
+
+            padding: 0 7px;
+
+            display: grid;
+            place-items: center;
+
+            background: rgba(255, 255, 255, .03);
+            border: 1px solid var(--border);
+
+            color: var(--text-soft);
+
+            border-radius: var(--radius);
+
+            cursor: pointer;
+
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            color: white;
+            background: rgba(255, 255, 255, .07);
+        }
+
+        .page-btn.active {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: white;
+        }
+
+        .page-btn:disabled {
+            opacity: .35;
+            cursor: not-allowed;
+        }
+
+        /* =========================================================
+           FORMS
+        ========================================================= */
+
+        .form-panel {
+            max-width: 900px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group.full {
+            grid-column: 1 / -1;
+        }
+
+        .form-label {
+            display: block;
+
+            margin-bottom: 6px;
+
+            color: #aeb7c3;
+
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .required {
+            color: #60a5fa;
+        }
+
+        .form-control {
+            width: 100%;
+
+            min-height: 38px;
+
+            padding: 8px 10px;
+
+            background: rgba(255, 255, 255, .025);
+
+            border: 1px solid var(--border);
+
+            color: white;
+
+            border-radius: var(--radius);
+
+            outline: none;
+
+            font-size: 11px;
+
+            transition: .18s;
+        }
+
+        .form-control:focus {
+            border-color: rgba(59, 130, 246, .55);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, .07);
+        }
+
+        textarea.form-control {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-help {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 9px;
+        }
+
+        .form-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 7px;
+
+            padding-top: 5px;
+        }
+
+        /* =========================================================
+           STOCK
+        ========================================================= */
+
+        .stock-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stock-current {
+            padding: 20px;
+        }
+
+        .stock-product {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+
+            margin-bottom: 25px;
+        }
+
+        .stock-product-image {
+            width: 50px;
+            height: 50px;
+
+            object-fit: cover;
+
+            border-radius: var(--radius);
+
+            border: 1px solid var(--border);
+        }
+
+        .stock-product-name {
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .stock-product-category {
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 9px;
+        }
+
+        .stock-number {
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: -2px;
+        }
+
+        .stock-number-label {
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .stock-form {
+            margin-top: 20px;
+        }
+
+        .stock-history {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+
+            padding: 12px 0;
+
+            border-bottom: 1px solid rgba(255, 255, 255, .05);
+        }
+
+        .history-item:last-child {
+            border-bottom: 0;
+        }
+
+        .history-dot {
+            width: 7px;
+            height: 7px;
+
+            margin-top: 4px;
+
+            flex: 0 0 7px;
+
+            background: var(--blue);
+            border-radius: 50%;
+        }
+
+        .history-main {
+            flex: 1;
+        }
+
+        .history-title {
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .history-details {
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 9px;
+        }
+
+        .history-quantity {
+            color: #4ade80;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        /* =========================================================
+           BACKUP
+        ========================================================= */
+
+        .backup-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .backup-card {
+            padding: 18px;
+        }
+
+        .backup-card-title {
+            color: var(--muted);
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .7px;
+        }
+
+        .backup-card-value {
+            margin-top: 9px;
+            font-size: 17px;
+            font-weight: 800;
+        }
+
+        .backup-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+
+            margin-top: 7px;
+
+            color: #4ade80;
+
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        /* =========================================================
+           EMPTY / LOADING
+        ========================================================= */
+
+        .loading-state {
+            padding: 70px 20px;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            color: var(--muted);
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+
+            margin-bottom: 12px;
+
+            border: 2px solid rgba(255, 255, 255, .08);
+            border-top-color: var(--blue);
+
+            border-radius: 50%;
+
+            animation: spin .7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            width: 45px;
+            height: 45px;
+
+            display: grid;
+            place-items: center;
+
+            margin: 0 auto 12px;
+
+            background: rgba(255, 255, 255, .04);
+
+            border: 1px solid var(--border);
+
+            border-radius: var(--radius);
+        }
+
+        .empty-icon svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--muted);
+        }
+
+        .empty-title {
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .empty-text {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        /* =========================================================
+           MODAL
+        ========================================================= */
 
         .modal {
-            display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
+            inset: 0;
+
+            display: none;
             align-items: center;
             justify-content: center;
+
+            padding: 20px;
+
+            background: rgba(0, 0, 0, .72);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+
             z-index: 1000;
         }
 
@@ -316,437 +1546,3863 @@
             display: flex;
         }
 
-        .modal-content {
-            background: #1e293b;
-            padding: 30px;
-            border-radius: 12px;
-            max-width: 500px;
-            width: 90%;
+        .modal-box {
+            width: 100%;
+            max-width: 600px;
+
             max-height: 90vh;
+
             overflow-y: auto;
+
+            background: rgba(14, 18, 25, .96);
+
+            border: 1px solid var(--border-light);
+
+            border-radius: var(--radius-lg);
+
+            box-shadow: 0 30px 100px rgba(0, 0, 0, .55);
+
+            animation: modalIn .2s ease;
         }
 
-        .modal-content h2 {
-            margin-bottom: 20px;
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px) scale(.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
-        .modal-content .close {
-            float: right;
-            background: none;
-            border: none;
-            color: #94a3b8;
-            font-size: 1.5rem;
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 17px 18px;
+
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-title {
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .modal-close {
+            width: 28px;
+            height: 28px;
+
+            display: grid;
+            place-items: center;
+
+            background: rgba(255, 255, 255, .04);
+
+            border: 1px solid var(--border);
+
+            color: var(--muted);
+
+            border-radius: var(--radius);
+
             cursor: pointer;
         }
 
-        .alert {
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
+        .modal-close:hover {
+            color: white;
         }
 
-        .alert.show {
-            display: block;
+        .modal-close svg {
+            width: 14px;
+            height: 14px;
+            stroke: currentColor;
         }
 
-        .alert-success {
-            background: #064e3b;
-            color: #34d399;
-            border: 1px solid #065f46;
+        .modal-body {
+            padding: 18px;
         }
 
-        .alert-error {
-            background: #7f1d1d;
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 7px;
+
+            padding: 13px 18px;
+
+            border-top: 1px solid var(--border);
+        }
+
+        /* =========================================================
+           ALERT / TOAST
+        ========================================================= */
+
+        .toast-container {
+            position: fixed;
+
+            right: 20px;
+            bottom: 20px;
+
+            width: 320px;
+
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+
+            z-index: 2000;
+        }
+
+        .toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+
+            padding: 12px;
+
+            background: rgba(15, 20, 28, .96);
+
+            border: 1px solid var(--border-light);
+
+            border-radius: var(--radius);
+
+            box-shadow: 0 15px 50px rgba(0, 0, 0, .35);
+
+            animation: toastIn .25s ease;
+        }
+
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateX(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast-icon {
+            width: 25px;
+            height: 25px;
+
+            display: grid;
+            place-items: center;
+
+            flex: 0 0 25px;
+
+            border-radius: var(--radius);
+        }
+
+        .toast.success .toast-icon {
+            background: rgba(34, 197, 94, .1);
+            color: #4ade80;
+        }
+
+        .toast.error .toast-icon {
+            background: rgba(239, 68, 68, .1);
             color: #f87171;
-            border: 1px solid #991b1b;
         }
 
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #94a3b8;
+        .toast.info .toast-icon {
+            background: rgba(59, 130, 246, .1);
+            color: #60a5fa;
         }
 
-        @media (max-width: 768px) {
-            .form-row {
+        .toast-icon svg {
+            width: 13px;
+            height: 13px;
+            stroke: currentColor;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            color: white;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .toast-message {
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 9px;
+            line-height: 1.4;
+        }
+
+        /* =========================================================
+           MOBILE
+        ========================================================= */
+
+        .mobile-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .55);
+            z-index: 90;
+        }
+
+        @media (max-width: 1100px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .dashboard-grid {
                 grid-template-columns: 1fr;
             }
-            .product-grid {
+
+            .stock-layout {
                 grid-template-columns: 1fr;
             }
-            .stats {
+        }
+
+        @media (max-width: 800px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform .25s ease;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .mobile-overlay.active {
+                display: block;
+            }
+
+            .main {
+                margin-left: 0;
+            }
+
+            .mobile-menu {
+                display: grid;
+                place-items: center;
+            }
+
+            .topbar {
+                padding: 0 16px;
+            }
+
+            .content {
+                padding: 20px 14px;
+            }
+
+            .admin-profile {
+                display: none;
+            }
+
+            .breadcrumb {
+                display: none;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .stats-grid {
                 grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+
+            .stat-card {
+                min-height: 115px;
+                padding: 14px;
+            }
+
+            .stat-value {
+                font-size: 23px;
+            }
+
+            .view-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .view-header .btn {
+                width: 100%;
+            }
+
+            .toolbar {
+                flex-wrap: wrap;
+            }
+
+            .search-box {
+                flex-basis: 100%;
+            }
+
+            .filter-select {
+                flex: 1;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-group.full {
+                grid-column: auto;
+            }
+
+            .backup-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .toast-container {
+                left: 14px;
+                right: 14px;
+                width: auto;
             }
         }
     </style>
 </head>
+
 <body>
-    <div class="container">
-        <h1>🛍️ SbayStore</h1>
-        <p class="subtitle">Product Management System</p>
 
-        <div id="alert" class="alert"></div>
+<div class="app">
 
-        <div class="stats">
-            <div class="stat-card">
-                <div class="label">Total Products</div>
-                <div class="value" id="totalProducts">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="label">Total Stock</div>
-                <div class="value" id="totalStock">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="label">Low Stock Items</div>
-                <div class="value" id="lowStock">0</div>
-            </div>
-            <div class="stat-card">
-                <div class="label">Categories</div>
-                <div class="value" id="totalCategories">0</div>
+    <!-- =========================================================
+         SIDEBAR
+    ========================================================== -->
+
+    <aside class="sidebar" id="sidebar">
+
+        <div class="brand">
+            <div class="brand-logo">S</div>
+
+            <div class="brand-info">
+                <div class="brand-name">SbayStore</div>
+                <div class="brand-subtitle">Management Console</div>
             </div>
         </div>
 
-        <div class="tabs">
-            <button class="tab-btn active" data-tab="products">📦 Products</button>
-            <button class="tab-btn" data-tab="add">➕ Add Product</button>
-            <button class="tab-btn" data-tab="stock">📊 Manage Stock</button>
-        </div>
+        <div class="nav-title">Workspace</div>
 
-        <!-- Products Tab -->
-        <div id="products" class="tab-content active">
-            <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-                <input type="text" id="searchInput" placeholder="Search products..." style="flex:1; padding: 10px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0;">
-                <button class="btn btn-primary" onclick="loadProducts()">Search</button>
-            </div>
-            <div id="productList">
-                <div class="loading">Loading products...</div>
-            </div>
-        </div>
+        <nav class="nav">
 
-        <!-- Add Product Tab -->
-        <div id="add" class="tab-content">
-            <h2>Add New Product</h2>
-            <form id="addProductForm">
-                <div class="form-group">
-                    <label>Product Name *</label>
-                    <input type="text" id="prodName" required>
+            <button class="nav-btn active" data-view="dashboard">
+                <span class="nav-icon">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                        <rect x="3" y="3" width="7" height="7" rx="1"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1"/>
+                    </svg>
+                </span>
+
+                <span class="nav-label">Dashboard</span>
+            </button>
+
+            <button class="nav-btn" data-view="products">
+                <span class="nav-icon">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                        <path d="M6 2h12l3 6v13H3V8l3-6Z"/>
+                        <path d="M3 8h18"/>
+                        <path d="M9 12h6"/>
+                    </svg>
+                </span>
+
+                <span class="nav-label">Products</span>
+
+                <span class="nav-badge" id="navProductCount">0</span>
+            </button>
+
+            <button class="nav-btn" data-view="add">
+                <span class="nav-icon">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                        <circle cx="12" cy="12" r="9"/>
+                        <path d="M12 8v8M8 12h8"/>
+                    </svg>
+                </span>
+
+                <span class="nav-label">Add Product</span>
+            </button>
+
+            <button class="nav-btn" data-view="stock">
+                <span class="nav-icon">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                        <path d="M4 19V5"/>
+                        <path d="M4 19h17"/>
+                        <path d="m7 15 4-4 3 2 5-6"/>
+                    </svg>
+                </span>
+
+                <span class="nav-label">Stock</span>
+            </button>
+
+        </nav>
+
+        <div class="nav-title">System</div>
+
+        <nav class="nav">
+
+            <button class="nav-btn" data-view="backup">
+                <span class="nav-icon">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                        <path d="M12 3v12"/>
+                        <path d="m7 10 5 5 5-5"/>
+                        <path d="M5 21h14"/>
+                    </svg>
+                </span>
+
+                <span class="nav-label">Backups</span>
+            </button>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="server-status">
+
+                <div class="server-status-top">
+                    <span class="status-dot" id="serverDot"></span>
+                    <span id="serverStatus">API Online</span>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Price *</label>
-                        <input type="number" id="prodPrice" step="0.01" required>
+
+                <div class="server-status-text" id="serverStatusText">
+                    Connected to SbayStore API
+                </div>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+
+    <!-- =========================================================
+         MAIN
+    ========================================================== -->
+
+    <main class="main">
+
+        <!-- TOPBAR -->
+
+        <header class="topbar">
+
+            <div class="topbar-left">
+
+                <button class="mobile-menu" id="mobileMenu">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                        <path d="M4 6h16M4 12h16M4 18h16"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"/>
+                    </svg>
+                </button>
+
+                <div>
+                    <div class="page-title" id="topPageTitle">
+                        Dashboard
                     </div>
-                    <div class="form-group">
-                        <label>Stock</label>
-                        <input type="number" id="prodStock" value="0">
+
+                    <div class="breadcrumb">
+                        SbayStore / <span id="breadcrumbPage">Overview</span>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Category *</label>
-                    <input type="text" id="prodCategory" required>
-                </div>
-                <div class="form-group">
-                    <label>Image URL</label>
-                    <input type="url" id="prodImage" placeholder="https://example.com/image.jpg">
-                </div>
-                <div class="form-group">
-                    <label>Description</label>
-                    <textarea id="prodDescription" rows="3"></textarea>
-                </div>
-                <button type="submit" class="btn btn-success">Create Product</button>
-            </form>
-        </div>
 
-        <!-- Stock Management Tab -->
-        <div id="stock" class="tab-content">
-            <h2>Manage Stock</h2>
-            <div style="margin-bottom: 20px;">
-                <select id="stockProductSelect" style="width: 100%; padding: 10px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0;">
-                    <option value="">Select a product...</option>
-                </select>
             </div>
-            <div id="stockInfo" style="display: none;">
-                <div style="background: #1e293b; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                    <h3 id="stockProductName"></h3>
-                    <p>Current Stock: <strong id="currentStock">0</strong></p>
+
+            <div class="topbar-right">
+
+                <button class="topbar-btn" id="refreshBtn" title="Refresh">
+
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                        <path d="M20 11a8 8 0 0 0-14.9-4"/>
+                        <path d="M4 4v5h5"/>
+                        <path d="M4 13a8 8 0 0 0 14.9 4"/>
+                        <path d="M20 20v-5h-5"/>
+                    </svg>
+
+                </button>
+
+                <div class="admin-profile">
+
+                    <div class="avatar">AD</div>
+
+                    <div>
+                        <div class="admin-name">Administrator</div>
+                        <div class="admin-role">Store Manager</div>
+                    </div>
+
                 </div>
-                <form id="addStockForm">
-                    <div class="form-group">
-                        <label>Quantity to Add *</label>
-                        <input type="number" id="stockQuantity" min="1" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Note (optional)</label>
-                        <input type="text" id="stockNote" placeholder="Restock, Return, etc.">
-                    </div>
-                    <button type="submit" class="btn btn-primary">Add Stock</button>
-                </form>
+
             </div>
-        </div>
-    </div>
 
-    <script>
-        const API_BASE = '/api';
-        let currentPage = 1;
-        let productsData = [];
+        </header>
 
-        // Show alert
-        function showAlert(message, type = 'success') {
-            const alert = document.getElementById('alert');
-            alert.className = `alert alert-${type} show`;
-            alert.textContent = message;
-            setTimeout(() => {
-                alert.classList.remove('show');
-            }, 5000);
-        }
+        <!-- CONTENT -->
 
-        // Load products
-        async function loadProducts(page = 1, search = '') {
-            try {
-                const url = `${API_BASE}/products?page=${page}&limit=24${search ? '&search=' + search : ''}`;
-                const response = await fetch(url);
-                const data = await response.json();
+        <div class="content">
 
-                if (data.success) {
-                    productsData = data.products;
-                    renderProducts(data);
-                    updateStats(data);
-                    updateStockSelect();
-                    currentPage = data.page;
-                }
-            } catch (error) {
-                console.error('Error loading products:', error);
-                showAlert('Error loading products', 'error');
-            }
-        }
+            <!-- =================================================
+                 DASHBOARD
+            ================================================== -->
 
-        // Render products
-        function renderProducts(data) {
-            const container = document.getElementById('productList');
-            
-            if (!data.products || data.products.length === 0) {
-                container.innerHTML = '<p style="text-align:center; padding:40px; color: #94a3b8;">No products found</p>';
-                return;
-            }
+            <section class="view active" id="view-dashboard">
 
-            let html = '<div class="product-grid">';
-            data.products.forEach(product => {
-                const stockClass = product.product_stock > 10 ? 'stock-in' : 
-                                 product.product_stock > 0 ? 'stock-low' : 'stock-out';
-                const stockText = product.product_stock > 10 ? 'In Stock' :
-                                 product.product_stock > 0 ? 'Low Stock' : 'Out of Stock';
+                <div class="view-header">
 
-                html += `
-                    <div class="product-card">
-                        <img src="${product.product_image_url || 'https://via.placeholder.com/300x200/111827/2563EB?text=No+Image'}" 
-                             alt="${product.product_name}"
-                             onerror="this.src='https://via.placeholder.com/300x200/111827/2563EB?text=No+Image'">
-                        <div class="info">
-                            <div class="name">${product.product_name}</div>
-                            <div class="category">${product.product_category || 'Uncategorized'}</div>
-                            <div class="price">$${product.product_price.toFixed(2)}</div>
-                            <span class="stock ${stockClass}">${stockText} (${product.product_stock})</span>
-                            <div class="actions">
-                                <button class="btn btn-warning" onclick="addStockQuick('${product.product_id}')">+ Stock</button>
-                                <button class="btn btn-danger" onclick="deleteProduct('${product.product_id}')">Delete</button>
+                    <div class="view-heading">
+                        <h1>Overview</h1>
+                        <p>Monitor your store inventory and product activity.</p>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="openAddProduct()">
+
+                        <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+
+                        Add Product
+
+                    </button>
+
+                </div>
+
+                <!-- STATS -->
+
+                <div class="stats-grid">
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+                            <span class="stat-label">Products</span>
+
+                            <div class="stat-icon">
+                                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                    <path d="M6 2h12l3 6v13H3V8l3-6Z"/>
+                                    <path d="M3 8h18"/>
+                                </svg>
                             </div>
                         </div>
+
+                        <div class="stat-value" id="dashboardProducts">
+                            0
+                        </div>
+
+                        <div class="stat-description">
+                            Total products in catalog
+                        </div>
+
                     </div>
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+                            <span class="stat-label">Stock Units</span>
+
+                            <div class="stat-icon">
+                                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                    <path d="m12 3 8 4-8 4-8-4 8-4Z"/>
+                                    <path d="m4 12 8 4 8-4"/>
+                                    <path d="m4 17 8 4 8-4"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div class="stat-value" id="dashboardStock">
+                            0
+                        </div>
+
+                        <div class="stat-description">
+                            Loaded inventory units
+                        </div>
+
+                    </div>
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+                            <span class="stat-label">Low Stock</span>
+
+                            <div class="stat-icon">
+                                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                    <path d="M12 3 2.5 20h19L12 3Z"/>
+                                    <path d="M12 9v5"/>
+                                    <path d="M12 17h.01"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div class="stat-value" id="dashboardLowStock">
+                            0
+                        </div>
+
+                        <div class="stat-description">
+                            Products with 10 or fewer
+                        </div>
+
+                    </div>
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+                            <span class="stat-label">Categories</span>
+
+                            <div class="stat-icon">
+                                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                    <path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v6H4zM14 15h6v6h-6z"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div class="stat-value" id="dashboardCategories">
+                            0
+                        </div>
+
+                        <div class="stat-description">
+                            Active product categories
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- DASHBOARD PANELS -->
+
+                <div class="dashboard-grid">
+
+                    <!-- RECENT PRODUCTS -->
+
+                    <div class="panel">
+
+                        <div class="panel-header">
+
+                            <div>
+                                <div class="panel-title">
+                                    Recent Products
+                                </div>
+
+                                <div class="panel-subtitle">
+                                    Latest products in your catalog
+                                </div>
+                            </div>
+
+                            <button class="btn btn-secondary" onclick="switchView('products')">
+                                View All
+                            </button>
+
+                        </div>
+
+                        <div class="table-wrapper">
+
+                            <table class="products-table">
+
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Category</th>
+                                        <th>Price</th>
+                                        <th>Stock</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody id="recentProducts">
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                    <!-- QUICK ACTIONS -->
+
+                    <div class="panel">
+
+                        <div class="panel-header">
+
+                            <div>
+                                <div class="panel-title">
+                                    Quick Actions
+                                </div>
+
+                                <div class="panel-subtitle">
+                                    Manage your store faster
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="panel-body">
+
+                            <div class="quick-actions">
+
+                                <button class="quick-action" onclick="openAddProduct()">
+
+                                    <div class="quick-icon">
+                                        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                            <path d="M12 5v14M5 12h14"/>
+                                        </svg>
+                                    </div>
+
+                                    <div class="quick-text">
+                                        <strong>Add Product</strong>
+                                        <span>Create a new item</span>
+                                    </div>
+
+                                </button>
+
+                                <button class="quick-action" onclick="switchView('products')">
+
+                                    <div class="quick-icon">
+                                        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                            <path d="M3 6h18M3 12h18M3 18h18"/>
+                                        </svg>
+                                    </div>
+
+                                    <div class="quick-text">
+                                        <strong>Products</strong>
+                                        <span>Manage catalog</span>
+                                    </div>
+
+                                </button>
+
+                                <button class="quick-action" onclick="switchView('stock')">
+
+                                    <div class="quick-icon">
+                                        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                            <path d="M4 19V5"/>
+                                            <path d="M4 19h17"/>
+                                            <path d="m7 15 4-4 3 2 5-6"/>
+                                        </svg>
+                                    </div>
+
+                                    <div class="quick-text">
+                                        <strong>Manage Stock</strong>
+                                        <span>Update inventory</span>
+                                    </div>
+
+                                </button>
+
+                                <button class="quick-action" onclick="manualBackup()">
+
+                                    <div class="quick-icon">
+                                        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                            <path d="M12 3v12"/>
+                                            <path d="m7 10 5 5 5-5"/>
+                                            <path d="M5 21h14"/>
+                                        </svg>
+                                    </div>
+
+                                    <div class="quick-text">
+                                        <strong>Backup</strong>
+                                        <span>Save to Cloudflare R2</span>
+                                    </div>
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <!-- ACTIVITY -->
+
+                    <div class="panel">
+
+                        <div class="panel-header">
+
+                            <div>
+                                <div class="panel-title">
+                                    Inventory Status
+                                </div>
+
+                                <div class="panel-subtitle">
+                                    Current stock overview
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="panel-body">
+
+                            <div class="activity-list" id="inventoryActivity">
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <!-- SYSTEM -->
+
+                    <div class="panel">
+
+                        <div class="panel-header">
+
+                            <div>
+                                <div class="panel-title">
+                                    System
+                                </div>
+
+                                <div class="panel-subtitle">
+                                    API and storage information
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="panel-body">
+
+                            <div class="activity-list">
+
+                                <div class="activity-item">
+
+                                    <div class="activity-icon">
+                                        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                            <circle cx="12" cy="12" r="9"/>
+                                            <path d="m8 12 3 3 5-6"/>
+                                        </svg>
+                                    </div>
+
+                                    <div class="activity-info">
+                                        <div class="activity-title">
+                                            SbayStore API
+                                        </div>
+
+                                        <div class="activity-time" id="systemApi">
+                                            Checking...
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div class="activity-item">
+
+                                    <div class="activity-icon">
+                                        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                            <path d="M12 3v18"/>
+                                            <path d="M5 8h14"/>
+                                            <path d="M5 16h14"/>
+                                        </svg>
+                                    </div>
+
+                                    <div class="activity-info">
+                                        <div class="activity-title">
+                                            Data Storage
+                                        </div>
+
+                                        <div class="activity-time">
+                                            products.json
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div class="activity-item">
+
+                                    <div class="activity-icon">
+                                        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                            <path d="M12 3v12"/>
+                                            <path d="m7 10 5 5 5-5"/>
+                                            <path d="M5 21h14"/>
+                                        </svg>
+                                    </div>
+
+                                    <div class="activity-info">
+                                        <div class="activity-title">
+                                            Cloudflare R2
+                                        </div>
+
+                                        <div class="activity-time" id="systemBackup">
+                                            Checking...
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <!-- =================================================
+                 PRODUCTS
+            ================================================== -->
+
+            <section class="view" id="view-products">
+
+                <div class="view-header">
+
+                    <div class="view-heading">
+                        <h1>Products</h1>
+                        <p>Manage, edit and organize your product catalog.</p>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="openAddProduct()">
+
+                        <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+
+                        Add Product
+
+                    </button>
+
+                </div>
+
+                <!-- TOOLBAR -->
+
+                <div class="toolbar">
+
+                    <div class="search-box">
+
+                        <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+                            <circle cx="11" cy="11" r="7"/>
+                            <path d="m20 20-4-4"/>
+                        </svg>
+
+                        <input
+                            type="text"
+                            id="searchInput"
+                            placeholder="Search products, categories or descriptions..."
+                        >
+
+                    </div>
+
+                    <select class="filter-select" id="categoryFilter">
+                        <option value="">All Categories</option>
+                    </select>
+
+                    <select class="filter-select" id="sortFilter">
+                        <option value="">Sort</option>
+                        <option value="newest">Newest</option>
+                        <option value="oldest">Oldest</option>
+                        <option value="name_asc">Name A-Z</option>
+                        <option value="name_desc">Name Z-A</option>
+                        <option value="price_asc">Price Low-High</option>
+                        <option value="price_desc">Price High-Low</option>
+                        <option value="stock_asc">Stock Low-High</option>
+                        <option value="stock_desc">Stock High-Low</option>
+                    </select>
+
+                    <button class="btn btn-secondary" onclick="loadProducts(1)">
+                        Apply
+                    </button>
+
+                </div>
+
+                <!-- TABLE -->
+
+                <div class="panel table-panel">
+
+                    <div class="panel-header">
+
+                        <div>
+                            <div class="panel-title">
+                                Product Catalog
+                            </div>
+
+                            <div class="panel-subtitle" id="productCountText">
+                                Loading...
+                            </div>
+                        </div>
+
+                        <button class="btn btn-secondary" onclick="loadProducts(currentPage)">
+                            Refresh
+                        </button>
+
+                    </div>
+
+                    <div id="productsTableContainer">
+
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            Loading products...
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <!-- =================================================
+                 ADD PRODUCT
+            ================================================== -->
+
+            <section class="view" id="view-add">
+
+                <div class="view-header">
+
+                    <div class="view-heading">
+                        <h1>Add Product</h1>
+                        <p>Create a new product and add it to your store.</p>
+                    </div>
+
+                </div>
+
+                <div class="panel form-panel">
+
+                    <div class="panel-header">
+
+                        <div>
+                            <div class="panel-title">
+                                Product Information
+                            </div>
+
+                            <div class="panel-subtitle">
+                                Enter the information for your new product.
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="panel-body">
+
+                        <form id="addProductForm">
+
+                            <div class="form-grid">
+
+                                <div class="form-group full">
+
+                                    <label class="form-label">
+                                        Product Name <span class="required">*</span>
+                                    </label>
+
+                                    <input
+                                        class="form-control"
+                                        id="prodName"
+                                        type="text"
+                                        placeholder="Enter product name"
+                                        required
+                                    >
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label class="form-label">
+                                        Price <span class="required">*</span>
+                                    </label>
+
+                                    <input
+                                        class="form-control"
+                                        id="prodPrice"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                        required
+                                    >
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label class="form-label">
+                                        Initial Stock
+                                    </label>
+
+                                    <input
+                                        class="form-control"
+                                        id="prodStock"
+                                        type="number"
+                                        min="0"
+                                        value="0"
+                                    >
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label class="form-label">
+                                        Category <span class="required">*</span>
+                                    </label>
+
+                                    <input
+                                        class="form-control"
+                                        id="prodCategory"
+                                        type="text"
+                                        placeholder="e.g. Games, Software, Gift Cards"
+                                        required
+                                    >
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label class="form-label">
+                                        Image URL
+                                    </label>
+
+                                    <input
+                                        class="form-control"
+                                        id="prodImage"
+                                        type="url"
+                                        placeholder="https://example.com/image.jpg"
+                                    >
+
+                                </div>
+
+                                <div class="form-group full">
+
+                                    <label class="form-label">
+                                        Description
+                                    </label>
+
+                                    <textarea
+                                        class="form-control"
+                                        id="prodDescription"
+                                        placeholder="Product description..."
+                                    ></textarea>
+
+                                </div>
+
+                            </div>
+
+                            <div class="form-footer">
+
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    onclick="switchView('products')"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary"
+                                    id="createProductBtn"
+                                >
+                                    Create Product
+                                </button>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <!-- =================================================
+                 STOCK
+            ================================================== -->
+
+            <section class="view" id="view-stock">
+
+                <div class="view-header">
+
+                    <div class="view-heading">
+                        <h1>Manage Stock</h1>
+                        <p>Update inventory and review stock history.</p>
+                    </div>
+
+                </div>
+
+                <div class="toolbar">
+
+                    <div class="search-box">
+
+                        <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+                            <circle cx="11" cy="11" r="7"/>
+                            <path d="m20 20-4-4"/>
+                        </svg>
+
+                        <input
+                            type="text"
+                            id="stockSearch"
+                            placeholder="Search product..."
+                        >
+
+                    </div>
+
+                    <select class="filter-select" id="stockProductSelect">
+                        <option value="">Select a product...</option>
+                    </select>
+
+                </div>
+
+                <div class="stock-layout">
+
+                    <!-- CURRENT STOCK -->
+
+                    <div class="panel">
+
+                        <div class="panel-header">
+
+                            <div>
+                                <div class="panel-title">
+                                    Inventory
+                                </div>
+
+                                <div class="panel-subtitle">
+                                    Select a product to manage
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="stock-current" id="stockInfo">
+
+                            <div class="empty-state">
+
+                                <div class="empty-icon">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                        <path d="M6 2h12l3 6v13H3V8l3-6Z"/>
+                                        <path d="M3 8h18"/>
+                                    </svg>
+                                </div>
+
+                                <div class="empty-title">
+                                    No product selected
+                                </div>
+
+                                <div class="empty-text">
+                                    Select a product above to manage its stock.
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <!-- HISTORY -->
+
+                    <div class="panel">
+
+                        <div class="panel-header">
+
+                            <div>
+                                <div class="panel-title">
+                                    Stock History
+                                </div>
+
+                                <div class="panel-subtitle">
+                                    Recent inventory changes
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="panel-body">
+
+                            <div class="stock-history" id="stockHistory">
+
+                                <div class="empty-state">
+                                    <div class="empty-text">
+                                        Select a product to view history.
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <!-- =================================================
+                 BACKUP
+            ================================================== -->
+
+            <section class="view" id="view-backup">
+
+                <div class="view-header">
+
+                    <div class="view-heading">
+                        <h1>Backups</h1>
+                        <p>Cloudflare R2 backup and system storage status.</p>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="manualBackup()" id="manualBackupBtn">
+
+                        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                            <path d="M12 3v12"/>
+                            <path d="m7 10 5 5 5-5"/>
+                            <path d="M5 21h14"/>
+                        </svg>
+
+                        Backup Now
+
+                    </button>
+
+                </div>
+
+                <div class="backup-grid">
+
+                    <div class="panel backup-card">
+
+                        <div class="backup-card-title">
+                            Provider
+                        </div>
+
+                        <div class="backup-card-value" id="backupProvider">
+                            Cloudflare R2
+                        </div>
+
+                        <div class="backup-status">
+                            <span class="status-dot"></span>
+                            Connected
+                        </div>
+
+                    </div>
+
+                    <div class="panel backup-card">
+
+                        <div class="backup-card-title">
+                            Schedule
+                        </div>
+
+                        <div class="backup-card-value" id="backupSchedule">
+                            Hourly
+                        </div>
+
+                        <div class="backup-status">
+                            Automatic
+                        </div>
+
+                    </div>
+
+                    <div class="panel backup-card">
+
+                        <div class="backup-card-title">
+                            Backup Limit
+                        </div>
+
+                        <div class="backup-card-value" id="backupLimit">
+                            10
+                        </div>
+
+                        <div class="backup-status">
+                            Configured
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="panel" style="margin-top:12px;">
+
+                    <div class="panel-header">
+
+                        <div>
+                            <div class="panel-title">
+                                Backup Information
+                            </div>
+
+                            <div class="panel-subtitle">
+                                Current Cloudflare R2 configuration
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="panel-body">
+
+                        <div class="activity-list">
+
+                            <div class="activity-item">
+
+                                <div class="activity-icon">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                        <path d="M12 3v18"/>
+                                        <path d="M5 8h14"/>
+                                        <path d="M5 16h14"/>
+                                    </svg>
+                                </div>
+
+                                <div class="activity-info">
+                                    <div class="activity-title">
+                                        Bucket
+                                    </div>
+
+                                    <div
+                                        class="activity-time"
+                                        id="backupBucket"
+                                    >
+                                        Loading...
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <div class="activity-item">
+
+                                <div class="activity-icon">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                        <path d="M4 12a8 8 0 0 1 15-4"/>
+                                        <path d="M19 4v5h-5"/>
+                                        <path d="M20 12a8 8 0 0 1-15 4"/>
+                                        <path d="M5 20v-5h5"/>
+                                    </svg>
+                                </div>
+
+                                <div class="activity-info">
+                                    <div class="activity-title">
+                                        Prefix
+                                    </div>
+
+                                    <div
+                                        class="activity-time"
+                                        id="backupPrefix"
+                                    >
+                                        backups/products/
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </main>
+
+</div>
+
+<!-- =========================================================
+     EDIT PRODUCT MODAL
+========================================================== -->
+
+<div class="modal" id="editModal">
+
+    <div class="modal-box">
+
+        <div class="modal-header">
+
+            <div class="modal-title">
+                Edit Product
+            </div>
+
+            <button class="modal-close" onclick="closeModal('editModal')">
+
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+                    <path d="m6 6 12 12M18 6 6 18"/>
+                </svg>
+
+            </button>
+
+        </div>
+
+        <form id="editProductForm">
+
+            <div class="modal-body">
+
+                <input type="hidden" id="editId">
+
+                <div class="form-grid">
+
+                    <div class="form-group full">
+
+                        <label class="form-label">
+                            Product Name
+                        </label>
+
+                        <input
+                            class="form-control"
+                            id="editName"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label class="form-label">
+                            Price
+                        </label>
+
+                        <input
+                            class="form-control"
+                            id="editPrice"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label class="form-label">
+                            Stock
+                        </label>
+
+                        <input
+                            class="form-control"
+                            id="editStock"
+                            type="number"
+                            min="0"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label class="form-label">
+                            Category
+                        </label>
+
+                        <input
+                            class="form-control"
+                            id="editCategory"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label class="form-label">
+                            Image URL
+                        </label>
+
+                        <input
+                            class="form-control"
+                            id="editImage"
+                            type="url"
+                        >
+
+                    </div>
+
+                    <div class="form-group full">
+
+                        <label class="form-label">
+                            Description
+                        </label>
+
+                        <textarea
+                            class="form-control"
+                            id="editDescription"
+                        ></textarea>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onclick="closeModal('editModal')"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                    id="saveEditBtn"
+                >
+                    Save Changes
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+<!-- =========================================================
+     ADD STOCK MODAL
+========================================================== -->
+
+<div class="modal" id="stockModal">
+
+    <div class="modal-box" style="max-width:450px;">
+
+        <div class="modal-header">
+
+            <div class="modal-title">
+                Add Stock
+            </div>
+
+            <button class="modal-close" onclick="closeModal('stockModal')">
+
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+                    <path d="m6 6 12 12M18 6 6 18"/>
+                </svg>
+
+            </button>
+
+        </div>
+
+        <form id="quickStockForm">
+
+            <div class="modal-body">
+
+                <input type="hidden" id="quickStockId">
+
+                <div
+                    style="
+                        padding:13px;
+                        margin-bottom:15px;
+                        background:rgba(59,130,246,.06);
+                        border:1px solid rgba(59,130,246,.12);
+                        border-radius:5px;
+                    "
+                >
+
+                    <div
+                        style="
+                            color:#fff;
+                            font-size:11px;
+                            font-weight:800;
+                        "
+                        id="quickStockName"
+                    >
+                        Product
+                    </div>
+
+                    <div
+                        style="
+                            color:#737d8c;
+                            font-size:9px;
+                            margin-top:4px;
+                        "
+                        id="quickStockCurrent"
+                    >
+                        Current stock: 0
+                    </div>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label class="form-label">
+                        Quantity to Add
+                    </label>
+
+                    <input
+                        class="form-control"
+                        id="quickStockQuantity"
+                        type="number"
+                        min="1"
+                        placeholder="Enter quantity"
+                        required
+                    >
+
+                </div>
+
+                <div class="form-group">
+
+                    <label class="form-label">
+                        Note
+                    </label>
+
+                    <input
+                        class="form-control"
+                        id="quickStockNote"
+                        placeholder="Restock, return, etc."
+                    >
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onclick="closeModal('stockModal')"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                >
+                    Add Stock
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+<!-- =========================================================
+     DELETE MODAL
+========================================================== -->
+
+<div class="modal" id="deleteModal">
+
+    <div class="modal-box" style="max-width:420px;">
+
+        <div class="modal-header">
+
+            <div class="modal-title">
+                Delete Product
+            </div>
+
+            <button class="modal-close" onclick="closeModal('deleteModal')">
+
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+                    <path d="m6 6 12 12M18 6 6 18"/>
+                </svg>
+
+            </button>
+
+        </div>
+
+        <div class="modal-body">
+
+            <div
+                style="
+                    width:42px;
+                    height:42px;
+                    display:grid;
+                    place-items:center;
+                    background:rgba(239,68,68,.08);
+                    color:#f87171;
+                    border:1px solid rgba(239,68,68,.15);
+                    border-radius:5px;
+                    margin-bottom:14px;
+                "
+            >
+
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                    <path d="M3 6h18"/>
+                    <path d="M8 6V4h8v2"/>
+                    <path d="m19 6-1 15H6L5 6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                </svg>
+
+            </div>
+
+            <div
+                style="
+                    color:#fff;
+                    font-size:13px;
+                    font-weight:800;
+                "
+            >
+                Delete this product?
+            </div>
+
+            <div
+                style="
+                    margin-top:6px;
+                    color:#737d8c;
+                    font-size:10px;
+                    line-height:1.5;
+                "
+            >
+                This action cannot be undone. The product and its stock history will be removed from the local product database.
+            </div>
+
+            <input type="hidden" id="deleteProductId">
+
+        </div>
+
+        <div class="modal-footer">
+
+            <button
+                class="btn btn-secondary"
+                onclick="closeModal('deleteModal')"
+            >
+                Cancel
+            </button>
+
+            <button
+                class="btn btn-danger"
+                onclick="confirmDelete()"
+            >
+                Delete Product
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- =========================================================
+     TOAST
+========================================================== -->
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- =========================================================
+     JAVASCRIPT
+========================================================== -->
+
+<script>
+
+    /* =========================================================
+       CONFIG
+    ========================================================== */
+
+    const API_BASE = '/api';
+
+    let currentPage = 1;
+    let productsData = [];
+    let allProductsCache = [];
+    let totalProducts = 0;
+    let totalPages = 1;
+
+    let currentStockProduct = null;
+
+    /* =========================================================
+       SVG ICONS
+    ========================================================== */
+
+    const ICONS = {
+
+        check: `
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+                <path d="m5 12 4 4L19 6"/>
+            </svg>
+        `,
+
+        error: `
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+                <path d="M12 9v4"/>
+                <path d="M12 17h.01"/>
+                <path d="M10.3 3.7 2.9 17a2 2 0 0 0 1.75 3h14.7a2 2 0 0 0 1.75-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/>
+            </svg>
+        `,
+
+        info: `
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 11v5"/>
+                <path d="M12 8h.01"/>
+            </svg>
+        `
+
+    };
+
+    /* =========================================================
+       TOAST
+    ========================================================== */
+
+    function showToast(message, type = 'success', title = '') {
+
+        const container = document.getElementById('toastContainer');
+
+        const toast = document.createElement('div');
+
+        toast.className = `toast ${type}`;
+
+        const defaultTitle =
+            type === 'success'
+                ? 'Success'
+                : type === 'error'
+                    ? 'Error'
+                    : 'Information';
+
+        toast.innerHTML = `
+            <div class="toast-icon">
+                ${ICONS[type] || ICONS.info}
+            </div>
+
+            <div class="toast-content">
+                <div class="toast-title">
+                    ${escapeHTML(title || defaultTitle)}
+                </div>
+
+                <div class="toast-message">
+                    ${escapeHTML(message)}
+                </div>
+            </div>
+        `;
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(15px)';
+
+            setTimeout(() => toast.remove(), 250);
+
+        }, 4000);
+    }
+
+    /* =========================================================
+       ESCAPE HTML
+    ========================================================== */
+
+    function escapeHTML(value) {
+
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    /* =========================================================
+       FORMAT
+    ========================================================== */
+
+    function formatPrice(value) {
+
+        const number = Number(value) || 0;
+
+        return '$' + number.toFixed(2);
+    }
+
+    function formatDate(value) {
+
+        if (!value) {
+            return '—';
+        }
+
+        try {
+
+            const date = new Date(value);
+
+            if (isNaN(date.getTime())) {
+                return value;
+            }
+
+            return date.toLocaleString();
+
+        } catch {
+            return value;
+        }
+    }
+
+    /* =========================================================
+       STOCK STATUS
+    ========================================================== */
+
+    function getStockClass(stock) {
+
+        stock = Number(stock) || 0;
+
+        if (stock <= 0) {
+            return 'stock-out';
+        }
+
+        if (stock <= 10) {
+            return 'stock-low';
+        }
+
+        return 'stock-good';
+    }
+
+    function getStockText(stock) {
+
+        stock = Number(stock) || 0;
+
+        if (stock <= 0) {
+            return 'Out of stock';
+        }
+
+        if (stock <= 10) {
+            return 'Low stock';
+        }
+
+        return 'In stock';
+    }
+
+    function stockBadge(stock) {
+
+        return `
+            <span class="stock-badge ${getStockClass(stock)}">
+                ${Number(stock) || 0} · ${getStockText(stock)}
+            </span>
+        `;
+    }
+
+    /* =========================================================
+       API REQUEST
+    ========================================================== */
+
+    async function apiRequest(url, options = {}) {
+
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                ...(options.headers || {})
+            }
+        });
+
+        let data;
+
+        try {
+            data = await response.json();
+        } catch {
+            throw new Error(`Server returned HTTP ${response.status}`);
+        }
+
+        if (!response.ok || data.success === false) {
+            throw new Error(
+                data.message ||
+                `Request failed with status ${response.status}`
+            );
+        }
+
+        return data;
+    }
+
+    /* =========================================================
+       LOAD PRODUCTS
+    ========================================================== */
+
+    async function loadProducts(page = 1) {
+
+        const container =
+            document.getElementById('productsTableContainer');
+
+        const search =
+            document.getElementById('searchInput')?.value.trim() || '';
+
+        const category =
+            document.getElementById('categoryFilter')?.value || '';
+
+        const sort =
+            document.getElementById('sortFilter')?.value || '';
+
+        container.innerHTML = `
+            <div class="loading-state">
+                <div class="spinner"></div>
+                Loading products...
+            </div>
+        `;
+
+        try {
+
+            const params = new URLSearchParams();
+
+            params.set('page', page);
+            params.set('limit', 24);
+
+            if (search) {
+                params.set('search', search);
+            }
+
+            if (category) {
+                params.set('category', category);
+            }
+
+            if (sort) {
+                params.set('sort', sort);
+            }
+
+            const data = await apiRequest(
+                `${API_BASE}/products?${params.toString()}`
+            );
+
+            productsData = data.products || [];
+
+            currentPage = Number(data.page) || 1;
+            totalPages = Number(data.totalPages) || 1;
+            totalProducts = Number(data.total) || 0;
+
+            allProductsCache = productsData;
+
+            renderProductsTable(data);
+            updateGlobalStats(data);
+            updateCategoryFilter(data.categories || []);
+            updateStockSelect();
+
+            updateRecentProducts(productsData);
+            updateInventoryStatus(productsData);
+
+            document.getElementById('navProductCount').textContent =
+                totalProducts;
+
+        } catch (error) {
+
+            console.error(error);
+
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        ${ICONS.error}
+                    </div>
+
+                    <div class="empty-title">
+                        Unable to load products
+                    </div>
+
+                    <div class="empty-text">
+                        ${escapeHTML(error.message)}
+                    </div>
+
+                    <button
+                        class="btn btn-secondary"
+                        style="margin-top:14px;"
+                        onclick="loadProducts(currentPage)"
+                    >
+                        Try Again
+                    </button>
+                </div>
+            `;
+
+            showToast(
+                error.message || 'Failed to load products',
+                'error'
+            );
+        }
+    }
+
+    /* =========================================================
+       RENDER PRODUCT TABLE
+    ========================================================== */
+
+    function renderProductsTable(data) {
+
+        const container =
+            document.getElementById('productsTableContainer');
+
+        const products = data.products || [];
+
+        document.getElementById('productCountText').textContent =
+            `${data.total || 0} products · Page ${data.page || 1} of ${data.totalPages || 1}`;
+
+        if (!products.length) {
+
+            container.innerHTML = `
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                            <path d="M6 2h12l3 6v13H3V8l3-6Z"/>
+                            <path d="M3 8h18"/>
+                        </svg>
+                    </div>
+
+                    <div class="empty-title">
+                        No products found
+                    </div>
+
+                    <div class="empty-text">
+                        Try changing your search or add a new product.
+                    </div>
+
+                </div>
+            `;
+
+            return;
+        }
+
+        let html = `
+            <div class="table-wrapper">
+
+                <table class="products-table">
+
+                    <thead>
+
+                        <tr>
+                            <th>Product</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Updated</th>
+                            <th>Actions</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+        `;
+
+        products.forEach(product => {
+
+            const image =
+                product.product_image_url ||
+                'https://via.placeholder.com/100x100/10151d/60a5fa?text=No+Image';
+
+            html += `
+                <tr>
+
+                    <td>
+
+                        <div class="product-cell">
+
+                            <img
+                                class="product-thumb"
+                                src="${escapeHTML(image)}"
+                                alt=""
+                                onerror="this.src='https://via.placeholder.com/100x100/10151d/60a5fa?text=No+Image'"
+                            >
+
+                            <div>
+
+                                <div class="product-name">
+                                    ${escapeHTML(product.product_name)}
+                                </div>
+
+                                <div class="product-id">
+                                    ID: ${escapeHTML(product.product_id)}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </td>
+
+                    <td>
+                        <span class="category-tag">
+                            ${escapeHTML(product.product_category || 'Uncategorized')}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="price">
+                            ${formatPrice(product.product_price)}
+                        </span>
+                    </td>
+
+                    <td>
+                        ${stockBadge(product.product_stock)}
+                    </td>
+
+                    <td>
+                        ${escapeHTML(
+                            formatDate(
+                                product.updated_at ||
+                                product.created_at
+                            )
+                        )}
+                    </td>
+
+                    <td>
+
+                        <div class="actions">
+
+                            <button
+                                class="icon-btn blue"
+                                title="Add Stock"
+                                onclick="openStockModal('${escapeJS(product.product_id)}')"
+                            >
+                                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                    <path d="M12 5v14M5 12h14"/>
+                                </svg>
+                            </button>
+
+                            <button
+                                class="icon-btn"
+                                title="Edit"
+                                onclick="openEditProduct('${escapeJS(product.product_id)}')"
+                            >
+                                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                    <path d="M12 20h9"/>
+                                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>
+                                </svg>
+                            </button>
+
+                            <button
+                                class="icon-btn red"
+                                title="Delete"
+                                onclick="openDeleteModal('${escapeJS(product.product_id)}')"
+                            >
+                                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                    <path d="M3 6h18"/>
+                                    <path d="M8 6V4h8v2"/>
+                                    <path d="m19 6-1 15H6L5 6"/>
+                                    <path d="M10 11v6M14 11v6"/>
+                                </svg>
+                            </button>
+
+                        </div>
+
+                    </td>
+
+                </tr>
+            `;
+
+        });
+
+        html += `
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            ${renderPagination(data)}
+        `;
+
+        container.innerHTML = html;
+    }
+
+    /* =========================================================
+       PAGINATION
+    ========================================================== */
+
+    function renderPagination(data) {
+
+        const page = Number(data.page) || 1;
+        const total = Number(data.total) || 0;
+        const limit = Number(data.limit) || 24;
+        const pages = Number(data.totalPages) || 1;
+
+        const start =
+            total === 0
+                ? 0
+                : ((page - 1) * limit) + 1;
+
+        const end =
+            Math.min(page * limit, total);
+
+        let pagesHTML = '';
+
+        pagesHTML += `
+            <button
+                class="page-btn"
+                ${page <= 1 ? 'disabled' : ''}
+                onclick="loadProducts(${page - 1})"
+            >
+                ‹
+            </button>
+        `;
+
+        const startPage =
+            Math.max(1, page - 2);
+
+        const endPage =
+            Math.min(pages, page + 2);
+
+        for (let i = startPage; i <= endPage; i++) {
+
+            pagesHTML += `
+                <button
+                    class="page-btn ${i === page ? 'active' : ''}"
+                    onclick="loadProducts(${i})"
+                >
+                    ${i}
+                </button>
+            `;
+        }
+
+        pagesHTML += `
+            <button
+                class="page-btn"
+                ${page >= pages ? 'disabled' : ''}
+                onclick="loadProducts(${page + 1})"
+            >
+                ›
+            </button>
+        `;
+
+        return `
+            <div class="pagination">
+
+                <div class="pagination-info">
+                    Showing ${start}-${end} of ${total}
+                </div>
+
+                <div class="pagination-buttons">
+                    ${pagesHTML}
+                </div>
+
+            </div>
+        `;
+    }
+
+    /* =========================================================
+       GLOBAL STATS
+    ========================================================== */
+
+    function updateGlobalStats(data) {
+
+        const total =
+            Number(data.total) || 0;
+
+        const stock =
+            productsData.reduce(
+                (sum, product) =>
+                    sum + (Number(product.product_stock) || 0),
+                0
+            );
+
+        const lowStock =
+            productsData.filter(
+                product =>
+                    Number(product.product_stock) <= 10
+            ).length;
+
+        const categories =
+            data.categories?.length ||
+            new Set(
+                productsData
+                    .map(p => p.product_category)
+                    .filter(Boolean)
+            ).size;
+
+        document.getElementById('dashboardProducts').textContent =
+            total;
+
+        document.getElementById('dashboardStock').textContent =
+            stock.toLocaleString();
+
+        document.getElementById('dashboardLowStock').textContent =
+            lowStock;
+
+        document.getElementById('dashboardCategories').textContent =
+            categories;
+
+    }
+
+    /* =========================================================
+       CATEGORY FILTER
+    ========================================================== */
+
+    function updateCategoryFilter(categories) {
+
+        const select =
+            document.getElementById('categoryFilter');
+
+        const current =
+            select.value;
+
+        const unique =
+            [...new Set(categories.filter(Boolean))].sort();
+
+        select.innerHTML =
+            `<option value="">All Categories</option>`;
+
+        unique.forEach(category => {
+
+            const option =
+                document.createElement('option');
+
+            option.value = category;
+            option.textContent = category;
+
+            select.appendChild(option);
+
+        });
+
+        select.value = current;
+
+    }
+
+    /* =========================================================
+       RECENT PRODUCTS
+    ========================================================== */
+
+    function updateRecentProducts(products) {
+
+        const tbody =
+            document.getElementById('recentProducts');
+
+        const recent =
+            [...products]
+                .sort(
+                    (a, b) =>
+                        new Date(b.created_at || 0) -
+                        new Date(a.created_at || 0)
+                )
+                .slice(0, 6);
+
+        if (!recent.length) {
+
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4">
+                        <div class="empty-state">
+                            No products yet.
+                        </div>
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+        tbody.innerHTML =
+            recent.map(product => {
+
+                const image =
+                    product.product_image_url ||
+                    'https://via.placeholder.com/100x100/10151d/60a5fa?text=No';
+
+                return `
+                    <tr>
+
+                        <td>
+
+                            <div class="product-cell">
+
+                                <img
+                                    class="product-thumb"
+                                    src="${escapeHTML(image)}"
+                                    onerror="this.src='https://via.placeholder.com/100x100/10151d/60a5fa?text=No'"
+                                >
+
+                                <div>
+
+                                    <div class="product-name">
+                                        ${escapeHTML(product.product_name)}
+                                    </div>
+
+                                    <div class="product-id">
+                                        ${escapeHTML(product.product_id)}
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </td>
+
+                        <td>
+                            ${escapeHTML(product.product_category || '—')}
+                        </td>
+
+                        <td>
+                            <span class="price">
+                                ${formatPrice(product.product_price)}
+                            </span>
+                        </td>
+
+                        <td>
+                            ${stockBadge(product.product_stock)}
+                        </td>
+
+                    </tr>
                 `;
-            });
-            html += '</div>';
 
-            // Pagination
-            if (data.totalPages > 1) {
-                html += `<div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">`;
-                if (data.hasPrevPage) {
-                    html += `<button class="btn btn-secondary" onclick="loadProducts(${data.page - 1})">Previous</button>`;
-                }
-                html += `<span style="padding:10px; color:#94a3b8;">Page ${data.page} of ${data.totalPages}</span>`;
-                if (data.hasNextPage) {
-                    html += `<button class="btn btn-secondary" onclick="loadProducts(${data.page + 1})">Next</button>`;
-                }
-                html += `</div>`;
-            }
+            }).join('');
 
-            container.innerHTML = html;
+    }
+
+    /* =========================================================
+       INVENTORY STATUS
+    ========================================================== */
+
+    function updateInventoryStatus(products) {
+
+        const container =
+            document.getElementById('inventoryActivity');
+
+        const out =
+            products.filter(
+                p => Number(p.product_stock) <= 0
+            ).length;
+
+        const low =
+            products.filter(
+                p =>
+                    Number(p.product_stock) > 0 &&
+                    Number(p.product_stock) <= 10
+            ).length;
+
+        const healthy =
+            products.filter(
+                p => Number(p.product_stock) > 10
+            ).length;
+
+        container.innerHTML = `
+
+            <div class="activity-item">
+
+                <div class="activity-icon">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                        <path d="M12 3 2.5 20h19L12 3Z"/>
+                        <path d="M12 9v5"/>
+                        <path d="M12 17h.01"/>
+                    </svg>
+                </div>
+
+                <div class="activity-info">
+
+                    <div class="activity-title">
+                        Out of stock
+                    </div>
+
+                    <div class="activity-time">
+                        ${out} products
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="activity-item">
+
+                <div class="activity-icon">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                        <circle cx="12" cy="12" r="9"/>
+                        <path d="M12 8v5"/>
+                        <path d="M12 16h.01"/>
+                    </svg>
+                </div>
+
+                <div class="activity-info">
+
+                    <div class="activity-title">
+                        Low stock
+                    </div>
+
+                    <div class="activity-time">
+                        ${low} products
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="activity-item">
+
+                <div class="activity-icon">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                        <path d="m5 12 4 4L19 6"/>
+                    </svg>
+                </div>
+
+                <div class="activity-info">
+
+                    <div class="activity-title">
+                        Healthy inventory
+                    </div>
+
+                    <div class="activity-time">
+                        ${healthy} products
+                    </div>
+
+                </div>
+
+            </div>
+        `;
+
+    }
+
+    /* =========================================================
+       STOCK SELECT
+    ========================================================== */
+
+    function updateStockSelect() {
+
+        const select =
+            document.getElementById('stockProductSelect');
+
+        if (!select) {
+            return;
         }
 
-        // Update stats
-        function updateStats(data) {
-            document.getElementById('totalProducts').textContent = data.total || 0;
-            document.getElementById('totalStock').textContent = productsData.reduce((sum, p) => sum + (p.product_stock || 0), 0);
-            document.getElementById('lowStock').textContent = productsData.filter(p => p.product_stock <= 10).length;
-            document.getElementById('totalCategories').textContent = data.categories ? data.categories.length : 0;
-        }
+        const current =
+            select.value;
 
-        // Update stock select dropdown
-        function updateStockSelect() {
-            const select = document.getElementById('stockProductSelect');
-            const currentValue = select.value;
-            select.innerHTML = '<option value="">Select a product...</option>';
-            productsData.forEach(p => {
-                select.innerHTML += `<option value="${p.product_id}">${p.product_name} (Stock: ${p.product_stock})</option>`;
-            });
-            if (currentValue) {
-                select.value = currentValue;
-            }
-        }
+        select.innerHTML =
+            `<option value="">Select a product...</option>`;
 
-        // Add product form
-        document.getElementById('addProductForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
+        productsData.forEach(product => {
+
+            const option =
+                document.createElement('option');
+
+            option.value =
+                product.product_id;
+
+            option.textContent =
+                `${product.product_name} — Stock: ${product.product_stock}`;
+
+            select.appendChild(option);
+
+        });
+
+        select.value = current;
+
+    }
+
+    /* =========================================================
+       OPEN ADD PRODUCT
+    ========================================================== */
+
+    function openAddProduct() {
+
+        switchView('add');
+
+        setTimeout(() => {
+
+            document.getElementById('prodName')?.focus();
+
+        }, 100);
+
+    }
+
+    /* =========================================================
+       ADD PRODUCT
+    ========================================================== */
+
+    document
+        .getElementById('addProductForm')
+        .addEventListener('submit', async event => {
+
+            event.preventDefault();
+
+            const button =
+                document.getElementById('createProductBtn');
+
+            button.disabled = true;
+            button.textContent = 'Creating...';
+
             const product = {
-                product_name: document.getElementById('prodName').value,
-                product_price: parseFloat(document.getElementById('prodPrice').value),
-                product_stock: parseInt(document.getElementById('prodStock').value) || 0,
-                product_category: document.getElementById('prodCategory').value,
-                product_image_url: document.getElementById('prodImage').value,
-                product_description: document.getElementById('prodDescription').value
+
+                product_name:
+                    document.getElementById('prodName').value.trim(),
+
+                product_price:
+                    parseFloat(
+                        document.getElementById('prodPrice').value
+                    ),
+
+                product_stock:
+                    parseInt(
+                        document.getElementById('prodStock').value
+                    ) || 0,
+
+                product_category:
+                    document.getElementById('prodCategory').value.trim(),
+
+                product_image_url:
+                    document.getElementById('prodImage').value.trim(),
+
+                product_description:
+                    document.getElementById('prodDescription').value.trim()
+
             };
 
             try {
-                const response = await fetch(`${API_BASE}/products`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(product)
-                });
 
-                const data = await response.json();
-                if (data.success) {
-                    showAlert('Product created successfully!');
-                    loadProducts();
-                    document.getElementById('addProductForm').reset();
-                } else {
-                    showAlert(data.message || 'Error creating product', 'error');
-                }
+                await apiRequest(
+                    `${API_BASE}/products`,
+                    {
+                        method: 'POST',
+
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+
+                        body: JSON.stringify(product)
+                    }
+                );
+
+                showToast(
+                    'Product created successfully.',
+                    'success'
+                );
+
+                document
+                    .getElementById('addProductForm')
+                    .reset();
+
+                document.getElementById('prodStock').value = 0;
+
+                await loadProducts(1);
+
+                switchView('products');
+
             } catch (error) {
-                showAlert('Error creating product', 'error');
+
                 console.error(error);
+
+                showToast(
+                    error.message ||
+                    'Failed to create product.',
+                    'error'
+                );
+
+            } finally {
+
+                button.disabled = false;
+                button.textContent = 'Create Product';
+
             }
+
         });
 
-        // Add stock form
-        document.getElementById('addStockForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const productId = document.getElementById('stockProductSelect').value;
-            if (!productId) {
-                showAlert('Please select a product', 'error');
+    /* =========================================================
+       EDIT PRODUCT
+    ========================================================== */
+
+    function openEditProduct(productId) {
+
+        const product =
+            productsData.find(
+                p => p.product_id === productId
+            );
+
+        if (!product) {
+
+            showToast(
+                'Product could not be found.',
+                'error'
+            );
+
+            return;
+        }
+
+        document.getElementById('editId').value =
+            product.product_id;
+
+        document.getElementById('editName').value =
+            product.product_name || '';
+
+        document.getElementById('editPrice').value =
+            product.product_price || 0;
+
+        document.getElementById('editStock').value =
+            product.product_stock || 0;
+
+        document.getElementById('editCategory').value =
+            product.product_category || '';
+
+        document.getElementById('editImage').value =
+            product.product_image_url || '';
+
+        document.getElementById('editDescription').value =
+            product.product_description || '';
+
+        openModal('editModal');
+
+    }
+
+    document
+        .getElementById('editProductForm')
+        .addEventListener('submit', async event => {
+
+            event.preventDefault();
+
+            const id =
+                document.getElementById('editId').value;
+
+            const button =
+                document.getElementById('saveEditBtn');
+
+            button.disabled = true;
+            button.textContent = 'Saving...';
+
+            const product = {
+
+                product_name:
+                    document.getElementById('editName').value.trim(),
+
+                product_price:
+                    parseFloat(
+                        document.getElementById('editPrice').value
+                    ),
+
+                product_stock:
+                    parseInt(
+                        document.getElementById('editStock').value
+                    ) || 0,
+
+                product_category:
+                    document.getElementById('editCategory').value.trim(),
+
+                product_image_url:
+                    document.getElementById('editImage').value.trim(),
+
+                product_description:
+                    document.getElementById('editDescription').value.trim()
+
+            };
+
+            try {
+
+                await apiRequest(
+                    `${API_BASE}/products/${encodeURIComponent(id)}`,
+                    {
+                        method: 'PUT',
+
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+
+                        body: JSON.stringify(product)
+                    }
+                );
+
+                closeModal('editModal');
+
+                showToast(
+                    'Product updated successfully.',
+                    'success'
+                );
+
+                await loadProducts(currentPage);
+
+            } catch (error) {
+
+                console.error(error);
+
+                showToast(
+                    error.message ||
+                    'Failed to update product.',
+                    'error'
+                );
+
+            } finally {
+
+                button.disabled = false;
+                button.textContent = 'Save Changes';
+
+            }
+
+        });
+
+    /* =========================================================
+       STOCK MODAL
+    ========================================================== */
+
+    function openStockModal(productId) {
+
+        const product =
+            productsData.find(
+                p => p.product_id === productId
+            );
+
+        if (!product) {
+            showToast(
+                'Product not found.',
+                'error'
+            );
+
+            return;
+        }
+
+        document.getElementById('quickStockId').value =
+            product.product_id;
+
+        document.getElementById('quickStockName').textContent =
+            product.product_name;
+
+        document.getElementById('quickStockCurrent').textContent =
+            `Current stock: ${product.product_stock || 0}`;
+
+        document.getElementById('quickStockQuantity').value = '';
+        document.getElementById('quickStockNote').value = '';
+
+        openModal('stockModal');
+
+        setTimeout(() => {
+            document
+                .getElementById('quickStockQuantity')
+                ?.focus();
+        }, 100);
+
+    }
+
+    document
+        .getElementById('quickStockForm')
+        .addEventListener('submit', async event => {
+
+            event.preventDefault();
+
+            const id =
+                document.getElementById('quickStockId').value;
+
+            const quantity =
+                parseInt(
+                    document.getElementById('quickStockQuantity').value
+                );
+
+            const note =
+                document.getElementById('quickStockNote').value.trim();
+
+            if (!quantity || quantity <= 0) {
+
+                showToast(
+                    'Enter a valid stock quantity.',
+                    'error'
+                );
+
                 return;
             }
 
-            const quantity = parseInt(document.getElementById('stockQuantity').value);
-            const note = document.getElementById('stockNote').value;
-
             try {
-                const response = await fetch(`${API_BASE}/products/${productId}/add-stock`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ quantity, note })
-                });
 
-                const data = await response.json();
-                if (data.success) {
-                    showAlert(`Added ${quantity} units to stock!`);
-                    loadProducts();
-                    document.getElementById('stockQuantity').value = '';
-                    document.getElementById('stockNote').value = '';
-                    // Update stock info
-                    document.getElementById('currentStock').textContent = data.product.product_stock;
-                } else {
-                    showAlert(data.message || 'Error adding stock', 'error');
+                const data =
+                    await apiRequest(
+                        `${API_BASE}/products/${encodeURIComponent(id)}/add-stock`,
+                        {
+                            method: 'POST',
+
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+
+                            body: JSON.stringify({
+                                quantity,
+                                note
+                            })
+                        }
+                    );
+
+                closeModal('stockModal');
+
+                showToast(
+                    `Added ${quantity} units to stock.`,
+                    'success'
+                );
+
+                await loadProducts(currentPage);
+
+                if (
+                    currentStockProduct &&
+                    currentStockProduct.product_id === id
+                ) {
+                    await selectStockProduct(id);
                 }
+
             } catch (error) {
-                showAlert('Error adding stock', 'error');
+
                 console.error(error);
+
+                showToast(
+                    error.message ||
+                    'Failed to add stock.',
+                    'error'
+                );
+
             }
+
         });
 
-        // Quick add stock
-        async function addStockQuick(productId) {
-            const quantity = prompt('Enter quantity to add:');
-            if (!quantity || isNaN(quantity) || parseInt(quantity) <= 0) return;
+    /* =========================================================
+       DELETE
+    ========================================================== */
 
-            try {
-                const response = await fetch(`${API_BASE}/products/${productId}/add-stock`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ quantity: parseInt(quantity), note: 'Quick add' })
-                });
+    function openDeleteModal(productId) {
 
-                const data = await response.json();
-                if (data.success) {
-                    showAlert(`Added ${quantity} units to stock!`);
-                    loadProducts();
-                } else {
-                    showAlert(data.message || 'Error adding stock', 'error');
-                }
-            } catch (error) {
-                showAlert('Error adding stock', 'error');
-                console.error(error);
-            }
+        document.getElementById('deleteProductId').value =
+            productId;
+
+        openModal('deleteModal');
+
+    }
+
+    async function confirmDelete() {
+
+        const productId =
+            document.getElementById('deleteProductId').value;
+
+        if (!productId) {
+            return;
         }
 
-        // Delete product
-        async function deleteProduct(productId) {
-            if (!confirm('Are you sure you want to delete this product?')) return;
+        try {
 
-            try {
-                const response = await fetch(`${API_BASE}/products/${productId}`, {
+            await apiRequest(
+                `${API_BASE}/products/${encodeURIComponent(productId)}`,
+                {
                     method: 'DELETE'
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    showAlert('Product deleted successfully');
-                    loadProducts();
-                } else {
-                    showAlert(data.message || 'Error deleting product', 'error');
                 }
-            } catch (error) {
-                showAlert('Error deleting product', 'error');
-                console.error(error);
-            }
+            );
+
+            closeModal('deleteModal');
+
+            showToast(
+                'Product deleted successfully.',
+                'success'
+            );
+
+            await loadProducts(
+                currentPage > 1 && productsData.length === 1
+                    ? currentPage - 1
+                    : currentPage
+            );
+
+        } catch (error) {
+
+            console.error(error);
+
+            showToast(
+                error.message ||
+                'Failed to delete product.',
+                'error'
+            );
+
         }
 
-        // Stock product select change
-        document.getElementById('stockProductSelect').addEventListener('change', function() {
-            const stockInfo = document.getElementById('stockInfo');
-            if (this.value) {
-                const product = productsData.find(p => p.product_id === this.value);
-                if (product) {
-                    document.getElementById('stockProductName').textContent = product.product_name;
-                    document.getElementById('currentStock').textContent = product.product_stock;
-                    stockInfo.style.display = 'block';
+    }
+
+    /* =========================================================
+       STOCK PAGE
+    ========================================================== */
+
+    document
+        .getElementById('stockProductSelect')
+        .addEventListener('change', function () {
+
+            if (!this.value) {
+
+                currentStockProduct = null;
+
+                document.getElementById('stockInfo').innerHTML = `
+                    <div class="empty-state">
+
+                        <div class="empty-icon">
+                            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                                <path d="M6 2h12l3 6v13H3V8l3-6Z"/>
+                                <path d="M3 8h18"/>
+                            </svg>
+                        </div>
+
+                        <div class="empty-title">
+                            No product selected
+                        </div>
+
+                        <div class="empty-text">
+                            Select a product above to manage its stock.
+                        </div>
+
+                    </div>
+                `;
+
+                document.getElementById('stockHistory').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-text">
+                            Select a product to view history.
+                        </div>
+                    </div>
+                `;
+
+                return;
+            }
+
+            selectStockProduct(this.value);
+
+        });
+
+    async function selectStockProduct(productId) {
+
+        try {
+
+            const data =
+                await apiRequest(
+                    `${API_BASE}/products/${encodeURIComponent(productId)}`
+                );
+
+            currentStockProduct =
+                data.product;
+
+            renderStockInfo(
+                currentStockProduct
+            );
+
+            renderStockHistory(
+                currentStockProduct
+            );
+
+        } catch (error) {
+
+            showToast(
+                error.message ||
+                'Failed to load product.',
+                'error'
+            );
+
+        }
+
+    }
+
+    function renderStockInfo(product) {
+
+        const image =
+            product.product_image_url ||
+            'https://via.placeholder.com/100x100/10151d/60a5fa?text=No';
+
+        document.getElementById('stockInfo').innerHTML = `
+
+            <div class="stock-product">
+
+                <img
+                    class="stock-product-image"
+                    src="${escapeHTML(image)}"
+                    onerror="this.src='https://via.placeholder.com/100x100/10151d/60a5fa?text=No'"
+                >
+
+                <div>
+
+                    <div class="stock-product-name">
+                        ${escapeHTML(product.product_name)}
+                    </div>
+
+                    <div class="stock-product-category">
+                        ${escapeHTML(product.product_category || 'Uncategorized')}
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div>
+
+                <div class="stock-number">
+                    ${Number(product.product_stock) || 0}
+                </div>
+
+                <div class="stock-number-label">
+                    Current inventory units
+                </div>
+
+            </div>
+
+            <div class="stock-form">
+
+                <div class="form-group">
+
+                    <label class="form-label">
+                        Quantity to Add
+                    </label>
+
+                    <input
+                        class="form-control"
+                        id="stockPageQuantity"
+                        type="number"
+                        min="1"
+                        placeholder="Enter quantity"
+                    >
+
+                </div>
+
+                <div class="form-group">
+
+                    <label class="form-label">
+                        Note
+                    </label>
+
+                    <input
+                        class="form-control"
+                        id="stockPageNote"
+                        placeholder="Restock, return, etc."
+                    >
+
+                </div>
+
+                <button
+                    class="btn btn-primary"
+                    onclick="addStockFromPage()"
+                >
+                    Add Stock
+                </button>
+
+            </div>
+        `;
+
+    }
+
+    function renderStockHistory(product) {
+
+        const container =
+            document.getElementById('stockHistory');
+
+        const history =
+            Array.isArray(product.stock_history)
+                ? [...product.stock_history].reverse()
+                : [];
+
+        if (!history.length) {
+
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                            <path d="M4 19V5"/>
+                            <path d="M4 19h17"/>
+                            <path d="m7 15 4-4 3 2 5-6"/>
+                        </svg>
+                    </div>
+
+                    <div class="empty-title">
+                        No stock history
+                    </div>
+
+                    <div class="empty-text">
+                        Stock changes will appear here.
+                    </div>
+                </div>
+            `;
+
+            return;
+        }
+
+        container.innerHTML =
+            history.map(item => `
+
+                <div class="history-item">
+
+                    <div class="history-dot"></div>
+
+                    <div class="history-main">
+
+                        <div class="history-title">
+                            Stock increased by
+                            <span class="history-quantity">
+                                +${Number(item.quantity_added) || 0}
+                            </span>
+                        </div>
+
+                        <div class="history-details">
+
+                            ${escapeHTML(item.note || 'Stock addition')}
+                            ·
+                            ${escapeHTML(formatDate(item.date))}
+                            ·
+                            ${Number(item.previous_stock) || 0}
+                            → 
+                            ${Number(item.new_stock) || 0}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            `).join('');
+
+    }
+
+    async function addStockFromPage() {
+
+        if (!currentStockProduct) {
+            return;
+        }
+
+        const quantity =
+            parseInt(
+                document.getElementById('stockPageQuantity').value
+            );
+
+        const note =
+            document.getElementById('stockPageNote').value.trim();
+
+        if (!quantity || quantity <= 0) {
+
+            showToast(
+                'Enter a valid quantity.',
+                'error'
+            );
+
+            return;
+        }
+
+        try {
+
+            await apiRequest(
+                `${API_BASE}/products/${encodeURIComponent(currentStockProduct.product_id)}/add-stock`,
+                {
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+
+                    body: JSON.stringify({
+                        quantity,
+                        note
+                    })
                 }
-            } else {
-                stockInfo.style.display = 'none';
-            }
+            );
+
+            showToast(
+                `Added ${quantity} units to stock.`,
+                'success'
+            );
+
+            await loadProducts(currentPage);
+
+            await selectStockProduct(
+                currentStockProduct.product_id
+            );
+
+        } catch (error) {
+
+            showToast(
+                error.message ||
+                'Failed to update stock.',
+                'error'
+            );
+
+        }
+
+    }
+
+    /* =========================================================
+       STOCK SEARCH
+    ========================================================== */
+
+    document
+        .getElementById('stockSearch')
+        .addEventListener('input', function () {
+
+            const query =
+                this.value.toLowerCase().trim();
+
+            const select =
+                document.getElementById('stockProductSelect');
+
+            select.innerHTML =
+                `<option value="">Select a product...</option>`;
+
+            productsData
+                .filter(product =>
+                    !query ||
+                    String(product.product_name)
+                        .toLowerCase()
+                        .includes(query)
+                )
+                .forEach(product => {
+
+                    const option =
+                        document.createElement('option');
+
+                    option.value =
+                        product.product_id;
+
+                    option.textContent =
+                        `${product.product_name} — Stock: ${product.product_stock}`;
+
+                    select.appendChild(option);
+
+                });
+
         });
 
-        // Search
-        document.getElementById('searchInput').addEventListener('keyup', (e) => {
-            if (e.key === 'Enter') {
-                loadProducts(1, e.target.value);
-            }
-        });
+    /* =========================================================
+       BACKUP
+    ========================================================== */
 
-        // Tab switching
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-                
-                this.classList.add('active');
-                document.getElementById(this.dataset.tab).classList.add('active');
+    async function loadBackupStatus() {
+
+        try {
+
+            const data =
+                await apiRequest(
+                    `${API_BASE}/backup/status`
+                );
+
+            const backup =
+                data.backup || {};
+
+            document.getElementById('backupProvider').textContent =
+                backup.provider || 'Cloudflare R2';
+
+            document.getElementById('backupSchedule').textContent =
+                backup.schedule || 'Hourly';
+
+            document.getElementById('backupLimit').textContent =
+                backup.maxBackups ?? 10;
+
+            document.getElementById('backupBucket').textContent =
+                backup.bucket || 'Not configured';
+
+            document.getElementById('backupPrefix').textContent =
+                backup.prefix || 'backups/products/';
+
+            document.getElementById('systemBackup').textContent =
+                backup.enabled
+                    ? `${backup.provider} · ${backup.schedule}`
+                    : 'Disabled';
+
+        } catch (error) {
+
+            console.error(error);
+
+            document.getElementById('systemBackup').textContent =
+                'Unavailable';
+
+        }
+
+    }
+
+    async function manualBackup() {
+
+        const button =
+            document.getElementById('manualBackupBtn');
+
+        if (button) {
+
+            button.disabled = true;
+            button.textContent = 'Backing up...';
+
+        }
+
+        try {
+
+            const data =
+                await apiRequest(
+                    `${API_BASE}/backup/manual`,
+                    {
+                        method: 'POST'
+                    }
+                );
+
+            showToast(
+                data.message ||
+                'Backup completed successfully.',
+                'success'
+            );
+
+            await loadBackupStatus();
+
+        } catch (error) {
+
+            showToast(
+                error.message ||
+                'Backup failed.',
+                'error'
+            );
+
+        } finally {
+
+            if (button) {
+
+                button.disabled = false;
+
+                button.innerHTML = `
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+                        <path d="M12 3v12"/>
+                        <path d="m7 10 5 5 5-5"/>
+                        <path d="M5 21h14"/>
+                    </svg>
+
+                    Backup Now
+                `;
+
+            }
+
+        }
+
+    }
+
+    /* =========================================================
+       HEALTH CHECK
+    ========================================================== */
+
+    async function checkHealth() {
+
+        try {
+
+            const data =
+                await apiRequest(
+                    `${API_BASE}/health`
+                );
+
+            document.getElementById('serverDot').style.background =
+                '#22c55e';
+
+            document.getElementById('serverStatus').textContent =
+                'API Online';
+
+            document.getElementById('serverStatusText').textContent =
+                `${data.productCount || 0} products · healthy`;
+
+            document.getElementById('systemApi').textContent =
+                `Healthy · ${data.productCount || 0} products`;
+
+        } catch (error) {
+
+            document.getElementById('serverDot').style.background =
+                '#ef4444';
+
+            document.getElementById('serverStatus').textContent =
+                'API Offline';
+
+            document.getElementById('serverStatusText').textContent =
+                'Unable to connect';
+
+            document.getElementById('systemApi').textContent =
+                'Connection failed';
+
+        }
+
+    }
+
+    /* =========================================================
+       MODALS
+    ========================================================== */
+
+    function openModal(id) {
+
+        document
+            .getElementById(id)
+            ?.classList.add('active');
+
+        document.body.style.overflow = 'hidden';
+
+    }
+
+    function closeModal(id) {
+
+        document
+            .getElementById(id)
+            ?.classList.remove('active');
+
+        document.body.style.overflow = '';
+
+    }
+
+    document
+        .querySelectorAll('.modal')
+        .forEach(modal => {
+
+            modal.addEventListener('click', event => {
+
+                if (event.target === modal) {
+                    closeModal(modal.id);
+                }
+
             });
+
         });
 
-        // Initial load
-        loadProducts();
-    </script>
+    document.addEventListener('keydown', event => {
+
+        if (event.key === 'Escape') {
+
+            document
+                .querySelectorAll('.modal.active')
+                .forEach(modal => {
+                    closeModal(modal.id);
+                });
+
+        }
+
+    });
+
+    /* =========================================================
+       NAVIGATION
+    ========================================================== */
+
+    function switchView(viewName) {
+
+        document
+            .querySelectorAll('.view')
+            .forEach(view => {
+                view.classList.remove('active');
+            });
+
+        const view =
+            document.getElementById(`view-${viewName}`);
+
+        if (view) {
+            view.classList.add('active');
+        }
+
+        document
+            .querySelectorAll('.nav-btn')
+            .forEach(button => {
+
+                button.classList.toggle(
+                    'active',
+                    button.dataset.view === viewName
+                );
+
+            });
+
+        const titles = {
+
+            dashboard: [
+                'Dashboard',
+                'Overview'
+            ],
+
+            products: [
+                'Products',
+                'Products'
+            ],
+
+            add: [
+                'Add Product',
+                'Add Product'
+            ],
+
+            stock: [
+                'Manage Stock',
+                'Stock'
+            ],
+
+            backup: [
+                'Backups',
+                'Backups'
+            ]
+
+        };
+
+        const title =
+            titles[viewName] ||
+            ['Dashboard', 'Overview'];
+
+        document.getElementById('topPageTitle').textContent =
+            title[0];
+
+        document.getElementById('breadcrumbPage').textContent =
+            title[1];
+
+        closeMobileMenu();
+
+        if (viewName === 'products') {
+            loadProducts(currentPage);
+        }
+
+        if (viewName === 'backup') {
+            loadBackupStatus();
+        }
+
+    }
+
+    document
+        .querySelectorAll('.nav-btn')
+        .forEach(button => {
+
+            button.addEventListener('click', () => {
+
+                switchView(
+                    button.dataset.view
+                );
+
+            });
+
+        });
+
+    /* =========================================================
+       SEARCH
+    ========================================================== */
+
+    document
+        .getElementById('searchInput')
+        .addEventListener('keydown', event => {
+
+            if (event.key === 'Enter') {
+                loadProducts(1);
+            }
+
+        });
+
+    /* =========================================================
+       REFRESH
+    ========================================================== */
+
+    document
+        .getElementById('refreshBtn')
+        .addEventListener('click', async () => {
+
+            const button =
+                document.getElementById('refreshBtn');
+
+            button.style.transform =
+                'rotate(360deg)';
+
+            setTimeout(() => {
+                button.style.transform = '';
+            }, 350);
+
+            await Promise.all([
+                loadProducts(currentPage),
+                checkHealth(),
+                loadBackupStatus()
+            ]);
+
+            showToast(
+                'Dashboard refreshed.',
+                'info'
+            );
+
+        });
+
+    /* =========================================================
+       MOBILE MENU
+    ========================================================== */
+
+    const sidebar =
+        document.getElementById('sidebar');
+
+    const overlay =
+        document.getElementById('mobileOverlay');
+
+    document
+        .getElementById('mobileMenu')
+        .addEventListener('click', () => {
+
+            sidebar.classList.add('open');
+            overlay.classList.add('active');
+
+        });
+
+    overlay.addEventListener(
+        'click',
+        closeMobileMenu
+    );
+
+    function closeMobileMenu() {
+
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+
+    }
+
+    /* =========================================================
+       SAFE JS ESCAPE
+    ========================================================== */
+
+    function escapeJS(value) {
+
+        return String(value || '')
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'")
+            .replace(/"/g, '\\"')
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r');
+
+    }
+
+    /* =========================================================
+       INITIAL LOAD
+    ========================================================== */
+
+    async function initializeDashboard() {
+
+        await Promise.all([
+            loadProducts(1),
+            checkHealth(),
+            loadBackupStatus()
+        ]);
+
+    }
+
+    initializeDashboard();
+
+    /* =========================================================
+       AUTO HEALTH CHECK
+    ========================================================== */
+
+    setInterval(
+        checkHealth,
+        30000
+    );
+
+</script>
+
 </body>
 </html>
