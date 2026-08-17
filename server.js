@@ -258,12 +258,9 @@ function startScheduledBackup() {
 
 // ============ HELPERS ============
 function generateProductId() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < 15; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
+    const uuid = require('uuid');
+    return uuid.v4();
+    // Example output: 3c1c6c7b-c4d2-4995-90ab-e7befe00d365
 }
 
 function paginateArray(array, page = 1, limit = 24) {
