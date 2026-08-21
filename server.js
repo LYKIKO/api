@@ -1,9 +1,13 @@
-
+// ============ LOAD ENVIRONMENT VARIABLES ============
 require('dotenv').config();
 
+const dns = require('dns');
+// Optional fix if your local network blocks MongoDB SRV DNS lookups:
+dns.setServers(['8.8.8.8', '8.8.4.4']);
+
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
-const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const compression = require('compression');
@@ -12,10 +16,33 @@ const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+// ============ MONGODB CONNECTION ============
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://lyheangzzff_db_user:zFePd4DGONoPo3JN@sbaystores.vgxjvm2.mongodb.net/sbaystores_db?retryWrites=true&w=majority&appName=sbaystores';
+
+mongoose.connect(MONGODB_URI)
+    .then(() => console.log('📦 Connected to MongoDB Atlas successfully'))
+    .catch((err) => console.error('❌ MongoDB connection error:', err));
+
+// Define Product Mongoose Schema
+const productSchema = new mongoose.Schema({
+    product_id: { type: String, required: true, unique: true, default: uuidv4 },
+    product_name: { type: String, required: true, trim: true },
+    product_price: { type: Number, required: true, min: 0 },
+    product_image_url: { type: String, default: 'https://via.placeholder.com/300x200/111827/2563EB?text=No+Image' },
+    product_category: { type: String, required: true, trim: true },
+    product_description: { type: String, default: '' },
+    product_stock: { type: Number, required: true, default: 0, min: 0 },
+    created_at: { type: String, default: () => new Date().toISOString().replace('T', ' ').slice(0, 19) },
+    updated_at: { type: String, default: null },
+    stock_history: { type: Array, default: [] }
+});
+
+const Product = mongoose.model('Product', productSchema);
+
 // ============ CLOUDFLARE R2 CONFIGURATION ============
 const r2Client = new S3Client({
     region: 'auto',
-    endpoint: process.env.CLOUDFLARE_R2_ENDPOINT, // e.g., https://<account-id>.r2.cloudflarestorage.com
+    endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
     credentials: {
         accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
         secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
@@ -24,125 +51,25 @@ const r2Client = new S3Client({
 
 const R2_BUCKET = process.env.CLOUDFLARE_R2_BUCKET_NAME;
 const BACKUP_PREFIX = 'backups/products/';
-const MAX_BACKUPS = 10; // Keep only last 10 backups
+const MAX_BACKUPS = 10;
 
 // ============ MIDDLEWARE ============
 app.use(cors());
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-// Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ============ DATA MANAGEMENT ============
-const DATA_FILE = path.join(__dirname, 'data', 'products.json');
-let productsCache = null;
-let cacheTimestamp = null;
-const CACHE_TTL = 5000; // 5 seconds
-
-// File watcher for external changes
-let watcherInitialized = false;
-
-function initializeFileWatcher() {
-    if (watcherInitialized) return;
-    try {
-        fs.watch(DATA_FILE, (eventType) => {
-            if (eventType === 'change') {
-                console.log('[Cache] File changed, clearing cache...');
-                productsCache = null;
-                cacheTimestamp = null;
-            }
-        });
-        watcherInitialized = true;
-        console.log('[Cache] File watcher initialized');
-    } catch (error) {
-        console.error('[Cache] Failed to initialize watcher:', error.message);
-    }
-}
-
-function readData() {
-    // Return cached data if valid
-    if (productsCache && cacheTimestamp && (Date.now() - cacheTimestamp < CACHE_TTL)) {
-        return productsCache;
-    }
-
-    try {
-        if (!fs.existsSync(DATA_FILE)) {
-            const defaultData = { products: [], lastUpdated: new Date().toISOString() };
-            fs.writeFileSync(DATA_FILE, JSON.stringify(defaultData, null, 2));
-            productsCache = defaultData;
-            cacheTimestamp = Date.now();
-            initializeFileWatcher();
-            return defaultData;
-        }
-
-        const data = fs.readFileSync(DATA_FILE, 'utf8');
-        const parsed = JSON.parse(data);
-        
-        // Ensure products is always an array
-        if (!Array.isArray(parsed.products)) {
-            parsed.products = [];
-        }
-        
-        productsCache = parsed;
-        cacheTimestamp = Date.now();
-        initializeFileWatcher();
-        return parsed;
-    } catch (error) {
-        console.error('[Data] Error reading file:', error);
-        return { products: [] };
-    }
-}
-
-// Async write with retry
-async function writeData(data) {
-    try {
-        // Ensure directory exists
-        const dir = path.dirname(DATA_FILE);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-
-        // Write to temp file first
-        const tempFile = DATA_FILE + '.tmp';
-        fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
-        
-        // Atomic rename
-        fs.renameSync(tempFile, DATA_FILE);
-        
-        // Update cache
-        productsCache = data;
-        cacheTimestamp = Date.now();
-        
-        // Trigger backup after successful write
-        backupToCloudflare(data).catch(err => 
-            console.error('[Backup] Async backup failed:', err.message)
-        );
-        
-        return true;
-    } catch (error) {
-        console.error('[Data] Error writing file:', error);
-        return false;
-    }
-}
-
 // ============ CLOUDFLARE R2 BACKUP FUNCTIONS ============
-
-/**
- * Create a backup of the products data to Cloudflare R2
- */
 async function backupToCloudflare(data) {
     try {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const backupFileName = `products_backup_${timestamp}.json`;
         const backupKey = `${BACKUP_PREFIX}${backupFileName}`;
 
-        // Convert data to buffer
         const jsonData = JSON.stringify(data, null, 2);
         const buffer = Buffer.from(jsonData, 'utf8');
 
-        // Upload to R2
         const command = new PutObjectCommand({
             Bucket: R2_BUCKET,
             Key: backupKey,
@@ -151,87 +78,28 @@ async function backupToCloudflare(data) {
             Metadata: {
                 'backup-time': new Date().toISOString(),
                 'product-count': String(data.products?.length || 0),
-                'version': '2.0.0'
+                'version': '2.0.0-mongo'
             }
         });
 
         await r2Client.send(command);
-        console.log(`[Backup] Successfully uploaded backup: ${backupFileName}`);
-        
-        // Clean up old backups
-        await cleanupOldBackups();
-        
-        return {
-            success: true,
-            fileName: backupFileName,
-            timestamp: timestamp
-        };
+        console.log(`[Backup] Successfully uploaded backup to R2: ${backupFileName}`);
+        return { success: true, fileName: backupFileName, timestamp };
     } catch (error) {
         console.error('[Backup] Failed to backup to Cloudflare R2:', error.message);
         throw error;
     }
 }
 
-/**
- * Clean up old backups, keeping only the most recent MAX_BACKUPS
- */
-async function cleanupOldBackups() {
-    try {
-        // Note: You might need to implement list and delete functionality
-        // For now, we'll log a warning if MAX_BACKUPS is exceeded
-        // Full implementation would require the ListObjectsV2 and DeleteObjects commands
-        
-        console.log('[Backup] Old backup cleanup would run here');
-        console.log(`[Backup] Currently keeping up to ${MAX_BACKUPS} backups`);
-        
-        // To implement full cleanup, uncomment and use:
-        /*
-        const { ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
-        
-        const listCommand = new ListObjectsV2Command({
-            Bucket: R2_BUCKET,
-            Prefix: BACKUP_PREFIX,
-        });
-        
-        const response = await r2Client.send(listCommand);
-        
-        if (response.Contents && response.Contents.length > MAX_BACKUPS) {
-            // Sort by last modified (oldest first)
-            const sortedFiles = response.Contents.sort((a, b) => 
-                a.LastModified - b.LastModified
-            );
-            
-            const filesToDelete = sortedFiles.slice(0, sortedFiles.length - MAX_BACKUPS);
-            
-            if (filesToDelete.length > 0) {
-                const deleteCommand = new DeleteObjectsCommand({
-                    Bucket: R2_BUCKET,
-                    Delete: {
-                        Objects: filesToDelete.map(file => ({ Key: file.Key })),
-                        Quiet: false
-                    }
-                });
-                
-                await r2Client.send(deleteCommand);
-                console.log(`[Backup] Cleaned up ${filesToDelete.length} old backups`);
-            }
-        }
-        */
-        
-    } catch (error) {
-        console.error('[Backup] Failed to clean up old backups:', error.message);
-    }
-}
-
-/**
- * Backup current data to R2 (called by cron job)
- */
 async function performScheduledBackup() {
     try {
-        console.log('[Backup] Performing scheduled hourly backup...');
-        const data = readData();
+        console.log('[Backup] Performing scheduled backup from MongoDB...');
+        const products = await Product.find().lean();
+        const data = {
+            products,
+            lastUpdated: new Date().toISOString()
+        };
         const result = await backupToCloudflare(data);
-        console.log(`[Backup] Hourly backup completed: ${result.fileName}`);
         return result;
     } catch (error) {
         console.error('[Backup] Scheduled backup failed:', error.message);
@@ -239,43 +107,12 @@ async function performScheduledBackup() {
     }
 }
 
-// ============ SCHEDULED BACKUP (Every Hour) ============
 let backupInterval = null;
-
 function startScheduledBackup() {
-    if (backupInterval) {
-        clearInterval(backupInterval);
-    }
-    
-    // Run every hour (3600000 ms)
-    backupInterval = setInterval(performScheduledBackup, 3600000);
-    
-    // Run immediately on startup
-    setTimeout(performScheduledBackup, 5000); // Wait 5 seconds for server to initialize
-    
+    if (backupInterval) clearInterval(backupInterval);
+    backupInterval = setInterval(performScheduledBackup, 3600000); // Every hour
+    setTimeout(performScheduledBackup, 5000); 
     console.log('[Scheduler] Hourly backup scheduler started');
-}
-
-// ============ HELPERS ============
-function generateProductId() {
-    const uuid = require('uuid');
-    return uuid.v4();
-    // Example output: 3c1c6c7b-c4d2-4995-90ab-e7befe00d365
-}
-
-function paginateArray(array, page = 1, limit = 24) {
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginated = array.slice(start, end);
-    return {
-        products: paginated,
-        total: array.length,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages: Math.ceil(array.length / limit),
-        hasNextPage: end < array.length,
-        hasPrevPage: page > 1
-    };
 }
 
 // ============ ROUTES ============
@@ -285,154 +122,123 @@ app.get('/', (req, res) => {
 
 app.get('/api', (req, res) => {
     res.json({
-        name: 'SbayStore API',
+        name: 'SbayStore API (MongoDB)',
         version: '2.0.0',
         features: {
-            pagination: '24 products per page',
-            caching: '5-second response cache',
+            database: 'MongoDB Atlas',
+            pagination: 'Enabled',
             compression: 'gzip enabled',
-            stockManagement: 'Add and update stock',
             backup: 'Hourly backup to Cloudflare R2'
-        },
-        endpoints: {
-            products: '/api/products?page=1&limit=24',
-            product: '/api/products/:id',
-            create: '/api/products (POST)',
-            update: '/api/products/:id (PUT)',
-            delete: '/api/products/:id (DELETE)',
-            addStock: '/api/products/:id/add-stock (POST)',
-            bulkAdd: '/api/products/bulk (POST)',
-            backupStatus: '/api/backup/status (GET)',
-            manualBackup: '/api/backup/manual (POST)'
         }
     });
 });
 
-// ============ GET ALL PRODUCTS (WITH PAGINATION) ============
-app.get('/api/products', (req, res) => {
+// ============ GET ALL PRODUCTS (WITH FILTERS, SORT & PAGINATION) ============
+app.get('/api/products', async (req, res) => {
     try {
         const startTime = Date.now();
-        const data = readData();
-
         const page = parseInt(req.query.page) || 1;
         const limit = Math.min(parseInt(req.query.limit) || 24, 60);
         const { search, category, minPrice, maxPrice, sort, minStock, maxStock } = req.query;
-        
-        let products = data.products || [];
+
+        let query = {};
 
         // --- FILTERS ---
         if (search) {
-            const searchLower = search.toLowerCase();
-            products = products.filter(p => 
-                (p.product_name || '').toLowerCase().includes(searchLower) ||
-                (p.product_description || '').toLowerCase().includes(searchLower) ||
-                (p.product_category || '').toLowerCase().includes(searchLower)
-            );
+            query.$or = [
+                { product_name: { $regex: search, $options: 'i' } },
+                { product_description: { $regex: search, $options: 'i' } },
+                { product_category: { $regex: search, $options: 'i' } }
+            ];
         }
 
         if (category) {
-            products = products.filter(p => 
-                (p.product_category || '').toLowerCase() === category.toLowerCase()
-            );
+            query.product_category = { $regex: `^${category}$`, $options: 'i' };
         }
 
-        if (minPrice) {
-            products = products.filter(p => (p.product_price || 0) >= parseFloat(minPrice));
-        }
-        if (maxPrice) {
-            products = products.filter(p => (p.product_price || 0) <= parseFloat(maxPrice));
-        }
-
-        if (minStock) {
-            products = products.filter(p => (p.product_stock || 0) >= parseInt(minStock));
-        }
-        if (maxStock) {
-            products = products.filter(p => (p.product_stock || 0) <= parseInt(maxStock));
+        if (minPrice || maxPrice) {
+            query.product_price = {};
+            if (minPrice) query.product_price.$gte = parseFloat(minPrice);
+            if (maxPrice) query.product_price.$lte = parseFloat(maxPrice);
         }
 
-        // --- SORT ---
+        if (minStock || maxStock) {
+            query.product_stock = {};
+            if (minStock) query.product_stock.$gte = parseInt(minStock);
+            if (maxStock) query.product_stock.$lte = parseInt(maxStock);
+        }
+
+        // --- SORTING ---
+        let sortCriteria = {};
         if (sort) {
-            switch(sort) {
-                case 'price_asc': products.sort((a, b) => (a.product_price || 0) - (b.product_price || 0)); break;
-                case 'price_desc': products.sort((a, b) => (b.product_price || 0) - (a.product_price || 0)); break;
-                case 'name_asc': products.sort((a, b) => (a.product_name || '').localeCompare(b.product_name || '')); break;
-                case 'name_desc': products.sort((a, b) => (b.product_name || '').localeCompare(a.product_name || '')); break;
-                case 'stock_asc': products.sort((a, b) => (a.product_stock || 0) - (b.product_stock || 0)); break;
-                case 'stock_desc': products.sort((a, b) => (b.product_stock || 0) - (a.product_stock || 0)); break;
-                case 'newest': products.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)); break;
-                case 'oldest': products.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)); break;
+            switch (sort) {
+                case 'price_asc': sortCriteria = { product_price: 1 }; break;
+                case 'price_desc': sortCriteria = { product_price: -1 }; break;
+                case 'name_asc': sortCriteria = { product_name: 1 }; break;
+                case 'name_desc': sortCriteria = { product_name: -1 }; break;
+                case 'stock_asc': sortCriteria = { product_stock: 1 }; break;
+                case 'stock_desc': sortCriteria = { product_stock: -1 }; break;
+                case 'newest': sortCriteria = { created_at: -1 }; break;
+                case 'oldest': sortCriteria = { created_at: 1 }; break;
                 default: break;
             }
         }
 
-        // --- PAGINATION ---
-        const result = paginateArray(products, page, limit);
+        const total = await Product.countDocuments(query);
+        const totalPages = Math.ceil(total / limit) || 1;
+        const skip = (page - 1) * limit;
+
+        const products = await Product.find(query)
+            .sort(sortCriteria)
+            .skip(skip)
+            .limit(limit);
+
+        // Fetch distinct categories for filter lists
+        const categories = await Product.distinct('product_category');
 
         res.set({
-            'Cache-Control': 'public, max-age=5',
             'X-Response-Time': `${Date.now() - startTime}ms`,
-            'X-Total-Products': result.total,
-            'X-Total-Pages': result.totalPages,
-            'X-Current-Page': result.page
+            'X-Total-Products': total,
+            'X-Total-Pages': totalPages,
+            'X-Current-Page': page
         });
 
         res.json({
             success: true,
-            ...result,
-            categories: [...new Set(data.products.map(p => p.product_category).filter(Boolean))]
+            products,
+            total,
+            page,
+            limit,
+            totalPages,
+            hasNextPage: skip + products.length < total,
+            hasPrevPage: page > 1,
+            categories: categories.filter(Boolean)
         });
 
     } catch (error) {
         console.error('[API] Error fetching products:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching products',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Error fetching products', error: error.message });
     }
 });
 
 // ============ GET SINGLE PRODUCT ============
-app.get('/api/products/:id', (req, res) => {
+app.get('/api/products/:id', async (req, res) => {
     try {
-        const data = readData();
-        const product = data.products.find(p => p.product_id === req.params.id);
-
+        const product = await Product.findOne({ product_id: req.params.id });
         if (!product) {
-            return res.status(404).json({
-                success: false,
-                message: 'Product not found'
-            });
+            return res.status(404).json({ success: false, message: 'Product not found' });
         }
-
-        res.json({
-            success: true,
-            product: product
-        });
+        res.json({ success: true, product });
     } catch (error) {
-        console.error('[API] Error fetching product:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching product',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Error fetching product', error: error.message });
     }
 });
 
 // ============ CREATE PRODUCT ============
 app.post('/api/products', async (req, res) => {
     try {
-        const data = readData();
-        const {
-            product_name,
-            product_price,
-            product_image_url,
-            product_category,
-            product_description,
-            product_stock
-        } = req.body;
+        const { product_name, product_price, product_image_url, product_category, product_description, product_stock } = req.body;
 
-        // Validation
         if (!product_name || product_price === undefined || !product_category) {
             return res.status(400).json({
                 success: false,
@@ -440,8 +246,8 @@ app.post('/api/products', async (req, res) => {
             });
         }
 
-        const newProduct = {
-            product_id: generateProductId(),
+        const newProduct = new Product({
+            product_id: uuidv4(),
             product_name: product_name.trim(),
             product_price: parseFloat(product_price),
             product_image_url: product_image_url || 'https://via.placeholder.com/300x200/111827/2563EB?text=No+Image',
@@ -449,211 +255,110 @@ app.post('/api/products', async (req, res) => {
             product_description: product_description || '',
             product_stock: parseInt(product_stock) || 0,
             created_at: new Date().toISOString().replace('T', ' ').slice(0, 19)
-        };
+        });
 
-        data.products.push(newProduct);
-        data.lastUpdated = new Date().toISOString();
-
-        if (await writeData(data)) {
-            res.status(201).json({
-                success: true,
-                message: 'Product created successfully',
-                product: newProduct
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                message: 'Failed to save product'
-            });
-        }
+        const savedProduct = await newProduct.save();
+        res.status(201).json({ success: true, message: 'Product created successfully', product: savedProduct });
     } catch (error) {
         console.error('[API] Error creating product:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error creating product',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Error creating product', error: error.message });
     }
 });
 
 // ============ ADD STOCK TO PRODUCT ============
 app.post('/api/products/:id/add-stock', async (req, res) => {
     try {
-        const data = readData();
-        const productIndex = data.products.findIndex(p => p.product_id === req.params.id);
-
-        if (productIndex === -1) {
-            return res.status(404).json({
-                success: false,
-                message: 'Product not found'
-            });
-        }
-
         const { quantity, note } = req.body;
         const addQuantity = parseInt(quantity);
 
         if (!addQuantity || addQuantity <= 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please provide a valid quantity to add (positive number)'
-            });
+            return res.status(400).json({ success: false, message: 'Please provide a valid positive quantity' });
         }
 
-        const existingProduct = data.products[productIndex];
-        const oldStock = existingProduct.product_stock || 0;
+        const product = await Product.findOne({ product_id: req.params.id });
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
+        }
+
+        const oldStock = product.product_stock || 0;
         const newStock = oldStock + addQuantity;
+        const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
-        // Update product stock
-        data.products[productIndex] = {
-            ...existingProduct,
-            product_stock: newStock,
-            updated_at: new Date().toISOString().replace('T', ' ').slice(0, 19),
-            stock_history: [
-                ...(existingProduct.stock_history || []),
-                {
-                    date: new Date().toISOString().replace('T', ' ').slice(0, 19),
-                    quantity_added: addQuantity,
-                    previous_stock: oldStock,
-                    new_stock: newStock,
-                    note: note || 'Stock addition'
-                }
-            ]
-        };
+        product.product_stock = newStock;
+        product.updated_at = timestamp;
+        product.stock_history.push({
+            date: timestamp,
+            quantity_added: addQuantity,
+            previous_stock: oldStock,
+            new_stock: newStock,
+            note: note || 'Stock addition'
+        });
 
-        data.lastUpdated = new Date().toISOString();
-
-        if (await writeData(data)) {
-            res.json({
-                success: true,
-                message: `Added ${addQuantity} units to stock`,
-                product: data.products[productIndex],
-                stock_update: {
-                    previous_stock: oldStock,
-                    new_stock: newStock,
-                    quantity_added: addQuantity
-                }
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                message: 'Failed to update stock'
-            });
-        }
+        const updatedProduct = await product.save();
+        res.json({
+            success: true,
+            message: `Added ${addQuantity} units to stock`,
+            product: updatedProduct,
+            stock_update: { previous_stock: oldStock, new_stock: newStock, quantity_added: addQuantity }
+        });
     } catch (error) {
         console.error('[API] Error adding stock:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error adding stock',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Error adding stock', error: error.message });
     }
 });
 
 // ============ UPDATE PRODUCT ============
 app.put('/api/products/:id', async (req, res) => {
     try {
-        const data = readData();
-        const productIndex = data.products.findIndex(p => p.product_id === req.params.id);
-
-        if (productIndex === -1) {
-            return res.status(404).json({
-                success: false,
-                message: 'Product not found'
-            });
-        }
-
         const updatedFields = req.body;
-        const existingProduct = data.products[productIndex];
+        const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
-        data.products[productIndex] = {
-            ...existingProduct,
-            product_name: updatedFields.product_name || existingProduct.product_name,
-            product_price: updatedFields.product_price ? parseFloat(updatedFields.product_price) : existingProduct.product_price,
-            product_image_url: updatedFields.product_image_url || existingProduct.product_image_url,
-            product_category: updatedFields.product_category || existingProduct.product_category,
-            product_description: updatedFields.product_description || existingProduct.product_description,
-            product_stock: updatedFields.product_stock !== undefined ? parseInt(updatedFields.product_stock) : existingProduct.product_stock,
-            updated_at: new Date().toISOString().replace('T', ' ').slice(0, 19)
+        const updateData = {
+            ...updatedFields,
+            updated_at: timestamp
         };
 
-        data.lastUpdated = new Date().toISOString();
+        const updatedProduct = await Product.findOneAndUpdate(
+            { product_id: req.params.id },
+            updateData,
+            { new: true, runValidators: true }
+        );
 
-        if (await writeData(data)) {
-            res.json({
-                success: true,
-                message: 'Product updated successfully',
-                product: data.products[productIndex]
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                message: 'Failed to update product'
-            });
+        if (!updatedProduct) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
         }
+
+        res.json({ success: true, message: 'Product updated successfully', product: updatedProduct });
     } catch (error) {
         console.error('[API] Error updating product:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error updating product',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Error updating product', error: error.message });
     }
 });
 
 // ============ DELETE PRODUCT ============
 app.delete('/api/products/:id', async (req, res) => {
     try {
-        const data = readData();
-        const productIndex = data.products.findIndex(p => p.product_id === req.params.id);
-
-        if (productIndex === -1) {
-            return res.status(404).json({
-                success: false,
-                message: 'Product not found'
-            });
+        const deletedProduct = await Product.findOneAndDelete({ product_id: req.params.id });
+        if (!deletedProduct) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
         }
-
-        const deletedProduct = data.products[productIndex];
-        data.products.splice(productIndex, 1);
-        data.lastUpdated = new Date().toISOString();
-
-        if (await writeData(data)) {
-            res.json({
-                success: true,
-                message: 'Product deleted successfully',
-                product: deletedProduct
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                message: 'Failed to delete product'
-            });
-        }
+        res.json({ success: true, message: 'Product deleted successfully', product: deletedProduct });
     } catch (error) {
         console.error('[API] Error deleting product:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error deleting product',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Error deleting product', error: error.message });
     }
 });
 
 // ============ BULK CREATE ============
 app.post('/api/products/bulk', async (req, res) => {
     try {
-        const data = readData();
-        const products = req.body.products || [];
-
-        if (!Array.isArray(products) || products.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid products array'
-            });
+        const productsArray = req.body.products || [];
+        if (!Array.isArray(productsArray) || productsArray.length === 0) {
+            return res.status(400).json({ success: false, message: 'Invalid products array' });
         }
 
-        const newProducts = products.map(p => ({
-            product_id: generateProductId(),
+        const newProducts = productsArray.map(p => ({
+            product_id: uuidv4(),
             product_name: p.product_name || 'Unnamed Product',
             product_price: parseFloat(p.product_price) || 0,
             product_image_url: p.product_image_url || 'https://via.placeholder.com/300x200/111827/2563EB?text=No+Image',
@@ -663,98 +368,59 @@ app.post('/api/products/bulk', async (req, res) => {
             created_at: new Date().toISOString().replace('T', ' ').slice(0, 19)
         }));
 
-        data.products.push(...newProducts);
-        data.lastUpdated = new Date().toISOString();
-
-        if (await writeData(data)) {
-            res.status(201).json({
-                success: true,
-                message: `${newProducts.length} products created successfully`,
-                products: newProducts
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                message: 'Failed to save products'
-            });
-        }
+        const inserted = await Product.insertMany(newProducts);
+        res.status(201).json({ success: true, message: `${inserted.length} products created successfully`, products: inserted });
     } catch (error) {
         console.error('[API] Error bulk creating products:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error bulk creating products',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Error bulk creating products', error: error.message });
     }
 });
 
-// ============ BACKUP STATUS ============
+// ============ BACKUP STATUS & MANUAL TRIGGER ============
 app.get('/api/backup/status', (req, res) => {
     res.json({
         success: true,
-        backup: {
-            enabled: true,
-            provider: 'Cloudflare R2',
-            bucket: R2_BUCKET,
-            schedule: 'Hourly',
-            maxBackups: MAX_BACKUPS,
-            prefix: BACKUP_PREFIX
-        }
+        backup: { enabled: true, provider: 'Cloudflare R2', bucket: R2_BUCKET, schedule: 'Hourly' }
     });
 });
 
-// ============ MANUAL BACKUP ============
 app.post('/api/backup/manual', async (req, res) => {
     try {
         const result = await performScheduledBackup();
         if (result) {
-            res.json({
-                success: true,
-                message: 'Manual backup completed successfully',
-                backup: result
-            });
+            res.json({ success: true, message: 'Manual backup completed successfully', backup: result });
         } else {
-            res.status(500).json({
-                success: false,
-                message: 'Manual backup failed'
-            });
+            res.status(500).json({ success: false, message: 'Manual backup failed' });
         }
     } catch (error) {
-        console.error('[API] Manual backup error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error performing manual backup',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Error performing manual backup', error: error.message });
     }
 });
 
 // ============ HEALTH CHECK ============
-app.get('/api/health', (req, res) => {
-    const data = readData();
-    res.json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        productCount: data.products.length,
-        cacheAge: cacheTimestamp ? `${Date.now() - cacheTimestamp}ms` : 'none',
-        backupScheduler: backupInterval ? 'running' : 'stopped'
-    });
+app.get('/api/health', async (req, res) => {
+    try {
+        const productCount = await Product.countDocuments();
+        res.json({
+            status: 'healthy',
+            database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+            timestamp: new Date().toISOString(),
+            productCount,
+            backupScheduler: backupInterval ? 'running' : 'stopped'
+        });
+    } catch (error) {
+        res.status(500).json({ status: 'unhealthy', error: error.message });
+    }
 });
 
 // ============ START SERVER ============
 app.listen(PORT, () => {
-    console.log(`🚀 SbayStore API v2.0 running on http://localhost:${PORT}`);
-    console.log(`📊 Data file: ${DATA_FILE}`);
+    console.log(`🚀 SbayStore API v2.0 (MongoDB) running on http://localhost:${PORT}`);
     console.log(`📦 Products endpoint: http://localhost:${PORT}/api/products?page=1&limit=24`);
-    console.log(`💾 Cache TTL: ${CACHE_TTL}ms`);
-    console.log(`🔄 File watcher: ${watcherInitialized ? 'active' : 'initializing...'}`);
-    console.log(`🌐 UI available at: http://localhost:${PORT}`);
-    console.log(`☁️  Cloudflare R2 backup: ${R2_BUCKET ? 'enabled' : 'disabled (check environment variables)'}`);
     
-    // Start the hourly backup scheduler
     if (R2_BUCKET && process.env.CLOUDFLARE_R2_ACCESS_KEY_ID) {
         startScheduledBackup();
     } else {
-        console.warn('⚠️  Cloudflare R2 backup is not configured. Set environment variables to enable.');
+        console.warn('⚠️ Cloudflare R2 backup is not configured. Set environment variables to enable.');
     }
 });
