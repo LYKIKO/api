@@ -1,9 +1,9 @@
 // ============ LOAD ENVIRONMENT VARIABLES ============
 require('dotenv').config();
 
-const dns = require('dns');
-// Optional fix if your local network blocks MongoDB SRV DNS lookups:
-dns.setServers(['8.8.8.8', '8.8.4.4']);
+// const dns = require('dns');
+// // Optional fix if your local network blocks MongoDB SRV DNS lookups:
+// dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const express = require('express');
 const mongoose = require('mongoose');
